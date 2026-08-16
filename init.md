@@ -40,3 +40,5 @@ for exaple, at this stage we wont implement a vidoe buffer, we'll just use the V
 
 - We'll implement EXT2.
 - Read/Write.
+- We will have a list of filesystems, each filesystem adds itself to the list, and when mounting a drive we probe each filesystem and find the correct one.
+- also we will use normal MBR. Sector 0 is bootloader and the partition table, and then stage 2 bootloader, and the actual first partition starts at 2048.

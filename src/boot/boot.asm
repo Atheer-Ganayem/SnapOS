@@ -14,7 +14,6 @@ jmp 0:start
 
 start:
   xor eax, eax
-  ; mov cs, eax
   mov ds, eax
   mov es, eax
   mov fs, eax
@@ -29,9 +28,7 @@ start:
   jmp $
 
 get_memory_map:
-  mov ax, LIST_BUF
-  mov es, ax
-  xor di, di
+  mov di, LIST_BUF
   xor ebx, ebx
   
   xor bp, bp ; the counter

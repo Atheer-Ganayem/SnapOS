@@ -24,6 +24,8 @@ start:
 
   mov sp, STACK_BASE_ADDR
 
+  mov [drive_no], dl
+
   call get_memory_map
 
   mov si, msg
@@ -100,6 +102,8 @@ dw STAGE2_SECTOR_COUNT
 dw STAGE2_ADDR        ; buffer offset
 dw 0                  ; buffer segment
 dq 1                  ; LBA number
+
+drive_no: db 0x00 ; we overwrite this in start
 
 read_stage2:
   mov si, DAP

@@ -5,7 +5,8 @@ READ_ENTRY_COMMAND equ 0xE820
 READ_ENTRY_MAGIC equ 0x534D4150
 READ_ENTRY_SECCUSS equ 0x534D4150
 
-STACK_BASE_ADDR 0x7C00
+STACK_BASE_ADDR equ 0x7C00
+STAGE2_ADDR equ 0x7C00+512
 LIST_BUF equ 0x510
 COUNTER equ 0x500
 ENTRY_SIZE equ 24
@@ -28,7 +29,12 @@ start:
   mov si, msg
   call print
 
-  jmp $
+  call read_stage2
+
+  mov si, msg
+  call print
+
+  jmp 0:STAGE2_ADDR
 
 get_memory_map:
   mov di, LIST_BUF
@@ -87,9 +93,31 @@ print:
 msg   db 'Read memory map successfully', 13, 10, 0
 err   db 'An error occurred while reading the memory map', 13, 10, 0
 
-times 445-($ - $$) db 0
+DAP: ; Disk Address Packet
+db 0x10               ; peacket size
+db 0x00               ; always 0
+dw STAGE2_SECTOR_COUNT
+dw STAGE2_ADDR        ; buffer offset
+dw 0                  ; buffer segment
+dq 1                  ; LBA number
 
-stage_two_sector_count db 0x00 ; here we are gonna put the size (in sectors) of stage 2 during the build.
+read_stage2:
+  mov si, DAP
+  mov ah, 0x42 ; command num
+  mov dl, 0x80 ; typically for drive zero
+  int 0x13
+
+  jc .err
+
+  test ah, ah
+  jnz .err
+
+  ret
+
+.err:
+  mov si, err
+  call print
+  jmp $
 
 times 510-($ - $$) db 0
 dw 0xAA55

@@ -21,10 +21,10 @@ qemu_gdb:
 	qemu-system-x86_64 -m 512M -drive format=raw,file=snapos.img -serial stdio -d int -no-reboot -s -S
 
 ./bin/boot.bin: ./src/boot/boot.asm ./bin/stage2.bin
-	nasm -f bin ./src/boot/boot.asm -o ./bin/boot.bin
 	@STAGE2_SIZE=$$(stat -c%s bin/stage2.bin); \
 	STAGE2_SECTORS=$$(( ($$STAGE2_SIZE + 511) / 512 )); \
-	python3 -c "with open('./bin/boot.bin', 'r+b') as f: f.seek(445); f.write(bytes([$$STAGE2_SECTORS]))"
+	nasm -f bin ./src/boot/boot.asm -d STAGE2_SECTOR_COUNT=$$STAGE2_SECTORS -o ./bin/boot.bin 
+# 	python3 -c "with open('./bin/boot.bin', 'r+b') as f: f.seek(445); f.write(bytes([$$STAGE2_SECTORS]))"
 
 ./bin/stage2.bin: ./src/boot/stage2.asm
 	nasm -f bin ./src/boot/stage2.asm -o ./bin/stage2.bin

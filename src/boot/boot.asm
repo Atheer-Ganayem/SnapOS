@@ -5,6 +5,7 @@ READ_ENTRY_COMMAND equ 0xE820
 READ_ENTRY_MAGIC equ 0x534D4150
 READ_ENTRY_SECCUSS equ 0x534D4150
 
+STACK_BASE_ADDR 0x7C00
 LIST_BUF equ 0x510
 COUNTER equ 0x500
 ENTRY_SIZE equ 24
@@ -19,6 +20,8 @@ start:
   mov fs, eax
   mov gs, eax
   mov ss, eax
+
+  mov sp, STACK_BASE_ADDR
 
   call get_memory_map
 
@@ -81,8 +84,12 @@ print:
 .done_print:
   ret
 
-msg   db 'Hello World', 13, 10, 0
-err   db 'err err err', 13, 10, 0
+msg   db 'Read memory map successfully', 13, 10, 0
+err   db 'An error occurred while reading the memory map', 13, 10, 0
+
+times 445-($ - $$) db 0
+
+stage_two_sector_count db 0x00 ; here we are gonna put the size (in sectors) of stage 2 during the build.
 
 times 510-($ - $$) db 0
 dw 0xAA55

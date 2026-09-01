@@ -33,9 +33,6 @@ start:
 
   call read_stage2
 
-  mov si, msg
-  call print
-
   jmp 0:STAGE2_ADDR
 
 get_memory_map:

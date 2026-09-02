@@ -1,16 +1,29 @@
 ORG 0x7C00+512
 BITS 16
 
+KYB_DATA_PORT equ 0x60
+KYB_STATUS_REG equ 0x64
+KYB_CMD_REG equ 0x64
+
 start:
   mov si, msg
   call print
 
   call enable_a20_line
+  jc err
+  mov si, a20_success_msg
+  call print
+
   call load_gdt
   call switch_to_protected_mode
   call create_and_load_page_table
   call switch_to_long_mode
 
+  jmp $
+
+err:
+  mov si, err_msg
+  call print
   jmp $
 
 
@@ -21,9 +34,20 @@ enable_a20_line:
   cmp ax, 1
   je .done
 
+  call .bios_int_0x15
+  call .test_a20
+  cmp ax, 1
+  je .done
 
+  call .enable_a20_kyb_controller
+  call .test_a20
+  cmp ax, 1
+  je .done
+
+  stc ; failed to activate, set carry flag
 
 .done:
+  clc
   ret
 
 .test_a20:
@@ -69,6 +93,59 @@ enable_a20_line:
 
   ret
 
+.bios_int_0x15:
+  ; No need to query int 0x15 support nor the status, because their result isnt reliable.
+  ; We already have our own test.
+  ; So we just issue the int 0x15 ax=0x2401 and then run our own test.
+  mov ax, 0x2401
+  int 0x15
+  ret
+
+.enable_a20_kyb_controller:
+  cli
+  
+  call .wait_input_empty
+  mov al, 0xAD ; diable keyboard
+  out KYB_CMD_REG, al
+
+  call .wait_input_empty
+  mov al, 0xD0  ; Read Controller Output Port	
+  out KYB_CMD_REG, al 
+
+  call .wait_output_arrived
+  in al, KYB_DATA_PORT ; save the repsonse
+  push ax
+
+  call .wait_input_empty
+  mov al, 0xD1  ; write next byte into controller output port
+  out KYB_CMD_REG, al 
+
+  call .wait_input_empty
+  pop ax
+  or al, 2  ; set controller output port second bit to 1 (A20 gate (output))
+  out KYB_DATA_PORT, al
+
+  call .wait_input_empty
+  mov al, 0xAE ; Enable first PS/2 port	
+  out KYB_CMD_REG, al
+
+  call .wait_input_empty
+  sti
+  ret
+
+
+.wait_input_empty:  ; wait until input buffer is empty (input is from the cpu to the controller)
+  in al, KYB_CMD_REG
+  test al, 2
+  jnz .wait_input_empty
+  ret
+
+.wait_output_arrived: ; wait until output buffer is not empty (out is from the controller to the cpu)
+  in al, KYB_CMD_REG
+  test al, 1
+  jz .wait_output_arrived
+  ret
+
 load_gdt:
   jmp $
 
@@ -98,3 +175,5 @@ print:
   ret
 
 msg db 'Hello from stage2', 13, 10, 0
+err_msg db 'An error has occurred', 13, 10, 0
+a20_success_msg db 'A20 line activated', 13, 10, 0

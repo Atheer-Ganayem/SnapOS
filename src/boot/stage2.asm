@@ -5,51 +5,66 @@ KYB_DATA_PORT equ 0x60
 KYB_STATUS_REG equ 0x64
 KYB_CMD_REG equ 0x64
 
+FAST_A20_GATE_REG equ 0x92
+
 start:
   mov si, msg
-  call print
+  call print_16
 
   call enable_a20_line
   jc err
   mov si, a20_success_msg
-  call print
+  call print_16
 
-  call load_gdt
-  call switch_to_protected_mode
-  call create_and_load_page_table
-  call switch_to_long_mode
+  call load_gdt_and_switch_to_pm
+
+  ; this shouldn't be reached. load_gdt_and_switch_to_pm will jump to 32 bit code
 
   jmp $
 
 err:
   mov si, err_msg
-  call print
+  call print_16
   jmp $
 
 
-; ax: 0 disabled, 1 enabled
-; DS is assumed to be zero.
 enable_a20_line:
+  mov si, a_20_init_test_msg
+  call print_16
   call .test_a20
   cmp ax, 1
   je .done
 
+  mov si, a_20_bios_interrupt_msg
+  call print_16
   call .bios_int_0x15
   call .test_a20
   cmp ax, 1
   je .done
 
+  mov si, a_20_kyb_conroller_msg
+  call print_16
   call .enable_a20_kyb_controller
   call .test_a20
   cmp ax, 1
   je .done
 
+  mov si, a_20_fast_gate_msg
+  call print_16
+  call .fast_a20_gate
+  call .test_a20
+  cmp ax, 1
+  je .done
+
   stc ; failed to activate, set carry flag
+  ret
 
 .done:
   clc
   ret
 
+; ax: 0 disabled, 1 enabled
+; DS is assumed to be zero.
 .test_a20:
   ; we first push the values of 0x0000:0x500 and 0xffff:0x510
   ; then set 0xffff:0x510 to 0xff, then 0x0000:0x500 to 0xx
@@ -133,7 +148,6 @@ enable_a20_line:
   sti
   ret
 
-
 .wait_input_empty:  ; wait until input buffer is empty (input is from the cpu to the controller)
   in al, KYB_CMD_REG
   test al, 2
@@ -146,20 +160,26 @@ enable_a20_line:
   jz .wait_output_arrived
   ret
 
-load_gdt:
-  jmp $
+.fast_a20_gate:
+  in al, FAST_A20_GATE_REG
+  test al, 2
+  jnz .fast_a20_gate_done ; already enabled
+  or al, 2
 
-switch_to_protected_mode:
-  jmp $
+  ; if the first bit is set to 1 it will trigger a restart.
+  ; after some research i found out it might be set to 1 because it's a stail value from the last run,
+    ; or because the hardware just handed us garbage value.
+    ; someone might wonder how would it be 1 and didn't cause a restart ?
+    ; because reading the port might be trigger only when writing.
+  and al, 0b11111110
+  
+  out FAST_A20_GATE_REG, al
 
-create_and_load_page_table:
-  jmp $
-
-switch_to_long_mode:
-  jmp $
+.fast_a20_gate_done:
+  ret
 
 
-print:
+print_16:
   nop
 .print_loop: 
   lodsb
@@ -174,6 +194,64 @@ print:
 .done_print:
   ret
 
+null_seg: dq 0
+kernel_code_seg_32:
+dw 0xFFFF
+dw 0
+db 0
+db 0b10011011
+db 0b11001111
+db 0
+
+kernel_data_seg_32:
+dw 0xFFFF
+dw 0
+db 0
+db 0b10010011
+db 0b11001111
+db 0
+
+gdtr_32:
+dw 24 - 1
+dd null_seg
+
+load_gdt_and_switch_to_pm:
+  cli
+  lgdt [gdtr_32]
+  mov eax, cr0
+  or al, 1
+  mov cr0, eax
+
+  jmp dword 0x08:pm_main
+
+
+[BITS 32]
+pm_main:
+  mov eax, 0x10
+  mov ds, eax
+  mov es, eax
+  mov ss, eax
+  mov gs, eax
+  mov fs, eax
+  
+  ; reset stack pointer
+  mov esp, 0x7c00
+
+  mov ebx, 2 ; just a test value to check in GDB if we reached here
+  jmp $
+
+create_and_load_page_table:
+  jmp $
+
+switch_to_long_mode:
+  jmp $
+
+
 msg db 'Hello from stage2', 13, 10, 0
 err_msg db 'An error has occurred', 13, 10, 0
 a20_success_msg db 'A20 line activated', 13, 10, 0
+
+a_20_init_test_msg db 'A20 line initial test', 13, 10, 0
+a_20_bios_interrupt_msg db 'A20 trying bios interrupt 0x15', 13, 10, 0
+a_20_kyb_conroller_msg db 'A20 line trying keyboard controller', 13, 10, 0
+a_20_fast_gate_msg db 'A20 line trying fast gate', 13, 10, 0

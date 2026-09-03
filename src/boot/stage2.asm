@@ -211,13 +211,30 @@ db 0b10010011
 db 0b11001111
 db 0
 
-gdtr_32:
+kernel_code_seg_64:
+dw 0xFFFF
+dw 0
+db 0
+db 0b10011011
+db 0b10101111
+db 0
+
+kernel_data_seg_64:
+dw 0xFFFF
+dw 0
+db 0
+db 0b10010011
+db 0b11001111
+db 0
+
+
+gdtr:
 dw 24 - 1
 dd null_seg
 
 load_gdt_and_switch_to_pm:
   cli
-  lgdt [gdtr_32]
+  lgdt [gdtr]
   mov eax, cr0
   or al, 1
   mov cr0, eax
@@ -226,6 +243,9 @@ load_gdt_and_switch_to_pm:
 
 
 [BITS 32]
+
+PML4_ADDR equ 0x70000 ; 448KiB
+
 pm_main:
   mov eax, 0x10
   mov ds, eax
@@ -241,7 +261,79 @@ pm_main:
   jmp $
 
 create_and_load_page_table:
-  jmp $
+  call .create_PML4
+  call .create_PDPT_low
+  call .create_PDPT_high
+  call .create_PD
+
+  ret
+
+.create_PML4:
+  mov edi, PML4_ADDR
+  call .zero_table
+  
+  ; first entry
+  mov eax, PML4_ADDR + 4096
+  or eax, 0x03
+  mov dword[PML4_ADDR], eax
+  mov dword[PML4_ADDR+4], 0
+
+  ; last entry
+  mov eax, PML4_ADDR + (4096*2)
+  or eax, 0x03
+  mov dword[PML4_ADDR+4088], eax
+  mov dword[PML4_ADDR+4092], 0
+
+  ret
+
+.create_PDPT_low:
+  mov edi, PML4_ADDR+4096
+  call .zero_table
+
+  mov eax, PML4_ADDR + (4096*3)
+  or eax, 0x03
+  mov dword[PML4_ADDR+4096], eax
+  mov dword[PML4_ADDR+4096+4], 0
+
+  ret
+
+.create_PDPT_high:
+  mov edi, PML4_ADDR+(4096*2)
+  call .zero_table
+
+  mov eax, PML4_ADDR + (4096*3)
+  or eax, 0x03
+  mov dword[PML4_ADDR + 4096*3 - 16], eax
+  mov dword[PML4_ADDR + 4096*3 - 12], 0
+
+  ret
+
+.create_PD: ; this table maps the full table as huge 2MiB pages
+  mov edi, PML4_ADDR+(4096*3)
+  call .zero_table
+
+  mov edi, PML4_ADDR+(4096*3)
+  mov ecx, 0x00
+.fill_PD_entry:
+  mov eax, ecx
+  or eax, 0x83
+  mov dword[edi], eax
+  mov dword[edi+4], 0
+  add edi, 8
+  add ecx, 0x200000 ; 2MiB
+
+  cmp ecx, 0x200000 * 512
+  jne .fill_PD_entry
+  
+  ret
+
+
+; address assumed at edi
+.zero_table:
+  xor eax, eax
+  mov ecx, 1024
+  rep stosd
+  ret
 
 switch_to_long_mode:
   jmp $

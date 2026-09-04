@@ -8,14 +8,8 @@ KYB_CMD_REG equ 0x64
 FAST_A20_GATE_REG equ 0x92
 
 start:
-  mov si, msg
-  call print_16
-
   call enable_a20_line
   jc err
-  mov si, a20_success_msg
-  call print_16
-
   call load_gdt_and_switch_to_pm
 
   ; this shouldn't be reached. load_gdt_and_switch_to_pm will jump to 32 bit code
@@ -23,34 +17,24 @@ start:
   jmp $
 
 err:
-  mov si, err_msg
-  call print_16
   jmp $
 
 
 enable_a20_line:
-  mov si, a_20_init_test_msg
-  call print_16
   call .test_a20
   cmp ax, 1
   je .done
 
-  mov si, a_20_bios_interrupt_msg
-  call print_16
   call .bios_int_0x15
   call .test_a20
   cmp ax, 1
   je .done
 
-  mov si, a_20_kyb_conroller_msg
-  call print_16
   call .enable_a20_kyb_controller
   call .test_a20
   cmp ax, 1
   je .done
 
-  mov si, a_20_fast_gate_msg
-  call print_16
   call .fast_a20_gate
   call .test_a20
   cmp ax, 1
@@ -178,21 +162,6 @@ enable_a20_line:
 .fast_a20_gate_done:
   ret
 
-
-print_16:
-  nop
-.print_loop: 
-  lodsb
-  test al, al
-  jz .done_print
-
-  mov ah, 0x0e
-  mov bx, 0
-  int 0x10
-  jmp .print_loop
-
-.done_print:
-  ret
 
 null_seg: dq 0
 kernel_code_seg_32:
@@ -432,12 +401,3 @@ lm_main:
   mov r8, 0x04 ; testing in gdb
 
   jmp $
-
-msg db 'Hello from stage2', 13, 10, 0
-err_msg db 'An error has occurred', 13, 10, 0
-a20_success_msg db 'A20 line activated', 13, 10, 0
-
-a_20_init_test_msg db 'A20 line initial test', 13, 10, 0
-a_20_bios_interrupt_msg db 'A20 trying bios interrupt 0x15', 13, 10, 0
-a_20_kyb_conroller_msg db 'A20 line trying keyboard controller', 13, 10, 0
-a_20_fast_gate_msg db 'A20 line trying fast gate', 13, 10, 0

@@ -28,9 +28,6 @@ start:
 
   call get_memory_map
 
-  mov si, msg
-  call print
-
   call read_stage2
 
   jmp 0:STAGE2_ADDR
@@ -70,27 +67,8 @@ get_memory_map:
   ret
 
 .err:
-  mov si, err
-  call print
   jmp $
 
-print:
-  nop
-.print_loop: 
-  lodsb
-  test al, al
-  jz .done_print
-
-  mov ah, 0x0e
-  mov bx, 0
-  int 0x10
-  jmp .print_loop
-
-.done_print:
-  ret
-
-msg   db 'Read memory map successfully', 13, 10, 0
-err   db 'An error occurred while reading the memory map', 13, 10, 0
 
 DAP: ; Disk Address Packet
 db 0x10               ; peacket size
@@ -116,8 +94,6 @@ read_stage2:
   ret
 
 .err:
-  mov si, err
-  call print
   jmp $
 
 times 510-($ - $$) db 0

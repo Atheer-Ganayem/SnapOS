@@ -229,7 +229,7 @@ db 0
 
 
 gdtr:
-dw 24 - 1
+dw 8*5 - 1
 dd null_seg
 
 load_gdt_and_switch_to_pm:
@@ -257,10 +257,17 @@ pm_main:
   ; reset stack pointer
   mov esp, 0x7c00
 
-  mov ebx, 2 ; just a test value to check in GDB if we reached here
+  call load_page_table
+
+  call switch_to_long_mode
+  jc .err
+
+  jmp 0x18:lm_main ; entering to 64 submode
+
+.err:
   jmp $
 
-create_and_load_page_table:
+load_page_table:
   call .create_PML4
   call .create_PDPT_low
   call .create_PDPT_high
@@ -327,7 +334,6 @@ create_and_load_page_table:
   
   ret
 
-
 ; address assumed at edi
 .zero_table:
   xor eax, eax
@@ -335,9 +341,97 @@ create_and_load_page_table:
   rep stosd
   ret
 
-switch_to_long_mode:
-  jmp $
 
+ERFLAGS_ID equ 1 << 21
+CPUID_EXTENDED_FUNCTIONS equ  0x80000000 ; This is the cpuid command that returns to us flags about the highest extended function supported.
+CPUID_EXTENDED_INFO equ       0x80000001 ; This function returns info about the extedned features.
+CPUID_EDX_EXT_FEAT_LM equ 1 << 29
+EFER_MSR equ 0xC0000080
+EFER_LM_ENABLE equ 1 << 8
+CR4_PAE_ENABLE equ 1 << 5
+CR0_PM_ENABLE equ 1 << 0
+CR0_PG_ENABLE equ 1 << 31
+
+switch_to_long_mode:
+  call .check_CPUID_and_long_mode_support
+  jc .not_supported
+
+  mov eax, PML4_ADDR
+  mov cr3, eax
+
+  mov eax, cr4
+  or eax, CR4_PAE_ENABLE
+  mov cr4, eax
+
+  mov ecx, EFER_MSR
+  rdmsr
+
+  or eax, EFER_LM_ENABLE
+  wrmsr
+
+  mov eax, cr0
+  or eax, CR0_PM_ENABLE | CR0_PG_ENABLE
+  mov cr0, eax
+
+  ; now we are in compatibility mode
+
+  clc
+  ret
+
+.check_CPUID_and_long_mode_support:
+  ; check if CPUID is supported
+  pushfd
+  pop eax
+  mov ecx, eax ; save original copy
+
+  xor eax, ERFLAGS_ID
+  push eax
+  popfd
+
+  pushfd
+  pop eax
+
+  push ecx ; resotre original value
+  popfd
+
+  xor eax, ecx
+  jz .not_supported
+
+  ; restore ERFLAGS original value
+  push ecx
+  popfd
+
+  ; check if cpuid function is supported and if so, call it and check for long mode support.
+  mov eax, CPUID_EXTENDED_FUNCTIONS
+  cpuid
+  cmp eax, CPUID_EXTENDED_INFO
+  jb .not_supported
+
+  mov eax, CPUID_EXTENDED_INFO
+  cpuid
+  test edx, CPUID_EDX_EXT_FEAT_LM
+  jz .not_supported
+
+  clc
+  ret
+.not_supported:
+  stc
+  ret
+
+
+[BITS 64]
+
+lm_main:
+  mov ax, 0x20
+  mov ds, ax
+  mov es, ax
+  mov ss, ax
+  mov gs, ax
+  mov fs, ax
+
+  mov r8, 0x04 ; testing in gdb
+
+  jmp $
 
 msg db 'Hello from stage2', 13, 10, 0
 err_msg db 'An error has occurred', 13, 10, 0

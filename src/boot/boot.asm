@@ -30,6 +30,7 @@ start:
 
   call read_stage2
 
+  mov dl, [drive_no]
   jmp 0:STAGE2_ADDR
 
 get_memory_map:
@@ -71,7 +72,7 @@ get_memory_map:
 
 
 DAP: ; Disk Address Packet
-db 0x10               ; peacket size
+db 0x10               ; packet size
 db 0x00               ; always 0
 dw STAGE2_SECTOR_COUNT
 dw STAGE2_ADDR        ; buffer offset
@@ -83,7 +84,7 @@ drive_no: db 0x00 ; we overwrite this in start
 read_stage2:
   mov si, DAP
   mov ah, 0x42 ; command num
-  mov dl, 0x80 ; typically for drive zero
+  mov dl, [drive_no]
   int 0x13
 
   jc .err

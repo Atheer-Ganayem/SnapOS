@@ -1,5 +1,7 @@
-ORG 0x7C00+512
+; ORG 0x7C00+512
 BITS 16
+
+global _start
 
 KYB_DATA_PORT equ 0x60
 KYB_STATUS_REG equ 0x64
@@ -7,16 +9,16 @@ KYB_CMD_REG equ 0x64
 
 FAST_A20_GATE_REG equ 0x92
 
-start:
+_start:
+  mov [drive_no], dl
   call enable_a20_line
-  jc err
-  call load_gdt_and_switch_to_pm
+  jc .err
+  call load_gdt_and_switch_to_pm_temp
 
-  ; this shouldn't be reached. load_gdt_and_switch_to_pm will jump to 32 bit code
-
+  ; this shouldn't be reached. load_gdt_and_switch_to_pm_temp will jump to 32 bit code
   jmp $
 
-err:
+.err:
   jmp $
 
 
@@ -164,12 +166,13 @@ enable_a20_line:
 
 
 null_seg: dq 0
-kernel_code_seg_32:
+
+kernel_code_seg_16:
 dw 0xFFFF
 dw 0
 db 0
 db 0b10011011
-db 0b11001111
+db 0b00000000
 db 0
 
 kernel_data_seg_32:
@@ -177,6 +180,14 @@ dw 0xFFFF
 dw 0
 db 0
 db 0b10010011
+db 0b11001111
+db 0
+
+kernel_code_seg_32:
+dw 0xFFFF
+dw 0
+db 0
+db 0b10011011
 db 0b11001111
 db 0
 
@@ -198,17 +209,145 @@ db 0
 
 
 gdtr:
-dw 8*5 - 1
+dw 8*6 - 1
 dd null_seg
 
-load_gdt_and_switch_to_pm:
+load_gdt_and_switch_to_pm_temp:
   cli
   lgdt [gdtr]
   mov eax, cr0
   or al, 1
   mov cr0, eax
 
-  jmp dword 0x08:pm_main
+  jmp dword (kernel_code_seg_16 - null_seg):pm_temp
+
+
+PARTITION_TABLE_START equ 0x7c00 + 446
+PARTITION_TABLE_ENTRY_SIZE equ 16
+
+DAP: ; Disk Address Packet
+db 0x10               ; packet size
+db 0x00               ; always 0
+DAP_SECTOR_COUNT dw 0x00
+DAP_BUF_ADDR dw 0x00        ; buffer offset
+dw 0                  ; buffer segment
+DAP_LBA_NUMBER dq 0
+
+drive_no: db 0x00 
+
+global issue_read_to_disk
+extern loadkernel
+
+unreal_mode:
+  xor ax, ax
+  mov ds, ax
+  mov es, ax
+  mov ss, ax
+  mov gs, ax
+  mov fs, ax
+  mov esp, 0x7c00
+
+  call .find_bootable_partition
+  jc .err
+  cmp byte[si+4], 0x83 ; Linux system ID
+  jne .err
+  mov ebp, dword[si+8] ; starting LBA of the partition
+
+  sti
+
+  push ebp
+  call dword loadkernel
+  add esp, 4
+  test eax, eax ; return code
+  jnz .err
+
+  call .switch_to_pm_main
+
+.err:
+  jmp $
+
+; if carry is set then no partition was found.
+; if carry was clear, then si will hold a pointer to the begining of the partition entry.
+.find_bootable_partition:
+  mov si, PARTITION_TABLE_START
+.find_bootable_partition_loop:
+  cmp byte[si], 0x80
+  je .find_bootable_partition_done
+
+  add si, PARTITION_TABLE_ENTRY_SIZE
+  cmp si, PARTITION_TABLE_START + 4 * PARTITION_TABLE_ENTRY_SIZE
+  jne .find_bootable_partition_loop
+  
+  stc
+  ret
+.find_bootable_partition_done:
+  clc
+  ret
+
+
+.switch_to_pm_main:
+  cli
+
+  ; mask slave and master interrupts
+  ; not masking them caused me issues
+  mov al, 0xFF
+  out 0xA1, al  
+  out 0x21, al 
+
+  mov eax, cr0
+  or al, 1
+  mov cr0, eax
+
+  jmp dword (kernel_code_seg_32 - null_seg):pm_main
+
+
+issue_read_to_disk:
+  push ebp
+  mov ebp, esp
+
+  push esi
+
+  mov eax, [ebp + 16] ; buf addr
+  mov word[DAP_BUF_ADDR], ax
+  mov eax, [ebp + 12] ; number of sectors
+  mov word[DAP_SECTOR_COUNT], ax
+  mov eax, [ebp + 8] ; lba
+  mov dword[DAP_LBA_NUMBER], eax
+
+  mov si, DAP
+  mov ah, 0x42 ; command num
+  mov dl, byte[drive_no]
+  int 0x13
+
+  jc .err
+
+  test ah, ah
+  jnz .err
+
+  pop esi
+  pop ebp
+
+  ret
+.err:
+  jmp $
+
+
+
+pm_temp:
+  mov eax, kernel_data_seg_32 - null_seg
+  mov ds, eax
+  mov es, eax
+  mov ss, eax
+  mov gs, eax
+  mov fs, eax
+  ; reset stack pointer
+  mov esp, 0x7c00
+
+  mov eax, cr0
+  and eax, ~1
+  mov cr0, eax
+
+  jmp word 0x00:unreal_mode
 
 
 [BITS 32]
@@ -216,27 +355,26 @@ load_gdt_and_switch_to_pm:
 PML4_ADDR equ 0x70000 ; 448KiB
 
 pm_main:
-  mov eax, 0x10
+  mov eax, kernel_data_seg_32 - null_seg
   mov ds, eax
   mov es, eax
   mov ss, eax
   mov gs, eax
   mov fs, eax
-  
   ; reset stack pointer
   mov esp, 0x7c00
 
-  call load_page_table
+  call create_page_table
 
   call switch_to_long_mode
   jc .err
 
-  jmp 0x18:lm_main ; entering to 64 submode
-
+  jmp (kernel_code_seg_64 - null_seg):lm_main ; entering to 64 submode
 .err:
   jmp $
 
-load_page_table:
+
+create_page_table:
   call .create_PML4
   call .create_PDPT_low
   call .create_PDPT_high
@@ -391,7 +529,7 @@ switch_to_long_mode:
 [BITS 64]
 
 lm_main:
-  mov ax, 0x20
+  mov ax, (kernel_data_seg_64 - null_seg)
   mov ds, ax
   mov es, ax
   mov ss, ax

@@ -1,6 +1,6 @@
 all: ./bin/boot.bin
 	dd if=/dev/zero of=snapos.img bs=1M count=64 status=none
-	parted -s snapos.img mklabel msdos mkpart primary ext2 1MiB 100%
+	parted -s snapos.img mklabel msdos mkpart primary ext2 1MiB 100% set 1 boot on
 	mkdir -p /tmp/snapos_mnt
 	
 	@LOOP_DEV=$$(sudo losetup -P -f --show snapos.img); \
@@ -24,10 +24,11 @@ qemu_gdb:
 	@STAGE2_SIZE=$$(stat -c%s bin/stage2.bin); \
 	STAGE2_SECTORS=$$(( ($$STAGE2_SIZE + 511) / 512 )); \
 	nasm -f bin ./src/boot/boot.asm -d STAGE2_SECTOR_COUNT=$$STAGE2_SECTORS -o ./bin/boot.bin 
-# 	python3 -c "with open('./bin/boot.bin', 'r+b') as f: f.seek(445); f.write(bytes([$$STAGE2_SECTORS]))"
 
 ./bin/stage2.bin: ./src/boot/stage2.asm
-	nasm -f bin ./src/boot/stage2.asm -o ./bin/stage2.bin
+	nasm -f elf32 ./src/boot/stage2.asm -o ./bin/boot/stage2.asm.o
+	i686-elf-gcc -m32 -march=i386 -ffreestanding -fno-pie -Os -c ./src/boot/loadkernel.c -o ./bin/boot/loadkernel.o
+	i686-elf-ld -m elf_i386 -T ./src/boot/stage2.ld ./bin/boot/stage2.asm.o ./bin/boot/loadkernel.o -o ./bin/stage2.bin
 
 clean:
 	rm -rf ./bin/boot.bin

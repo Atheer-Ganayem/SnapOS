@@ -332,7 +332,6 @@ issue_read_to_disk:
   jmp $
 
 
-
 pm_temp:
   mov eax, kernel_data_seg_32 - null_seg
   mov ds, eax
@@ -351,8 +350,6 @@ pm_temp:
 
 
 [BITS 32]
-
-PML4_ADDR equ 0x70000 ; 448KiB
 
 pm_main:
   mov eax, kernel_data_seg_32 - null_seg
@@ -373,6 +370,8 @@ pm_main:
 .err:
   jmp $
 
+
+PML4_ADDR equ 0x70000 ; 448KiB
 
 create_page_table:
   call .create_PML4
@@ -537,5 +536,7 @@ lm_main:
   mov fs, ax
 
   mov r8, 0x04 ; testing in gdb
+  mov rax, 0xB8000
+  mov byte[rax], 'X'
 
   jmp $

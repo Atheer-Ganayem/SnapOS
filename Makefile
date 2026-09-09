@@ -2,10 +2,10 @@ ARCH ?= x86_64
 CC = $(ARCH)-elf-gcc
 ASM = nasm
 
-CFLAGS = -ffreestanding -O2 -Wall -Wextra -Iinclude
-ASMFLAGS = -f elf64 # Telling NASM to output 64-bit ELF object files
+CFLAGS = -ffreestanding -O2 -Wall -Wextra -Iinclude -Iarch/$(ARCH)/include -mcmodel=kernel -mno-red-zone
+ASMFLAGS = -f elf64
 
-CORE_SRC := $(wildcard kernel/*.c mm/*.c fs/*.c fs/ext2/*.c drivers/*.c)
+CORE_SRC := $(wildcard kernel/*.c mm/*.c fs/*.c fs/ext2/*.c drivers/*/*.c)
 ARCH_C_SRC := $(wildcard arch/$(ARCH)/kernel/*.c arch/$(ARCH)/mm/*.c)
 ARCH_S_SRC := $(wildcard arch/$(ARCH)/kernel/*.asm)
 

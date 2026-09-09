@@ -1,12 +1,10 @@
-
+#include <drivers/vga.h>
+#include <asm/pgtable-types.h>
 
 void kmain() {
-  int x = 10;
-  x = 5;
-
-  char* vga = (char*) 0xB8000;
-  *vga = 'K';
-
+  vga_init();
+  vga_print("Hello world\nI'm Atheer.");
+  vga_putchar('\n');
+  
   while (1) {}
-  return;
 }

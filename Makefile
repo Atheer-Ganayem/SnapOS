@@ -7,7 +7,7 @@ ASMFLAGS = -f elf64 # Telling NASM to output 64-bit ELF object files
 
 CORE_SRC := $(wildcard kernel/*.c mm/*.c fs/*.c fs/ext2/*.c drivers/*.c)
 ARCH_C_SRC := $(wildcard arch/$(ARCH)/kernel/*.c arch/$(ARCH)/mm/*.c)
-ARCH_S_SRC := $(wildcard arch/$(ARCH)/boot/*.asm arch/$(ARCH)/kernel/*.asm)
+ARCH_S_SRC := $(wildcard arch/$(ARCH)/kernel/*.asm)
 
 ALL_C_SRC := $(CORE_SRC) $(ARCH_C_SRC)
 ALL_S_SRC := $(ARCH_S_SRC)
@@ -17,7 +17,7 @@ S_OBJS := $(patsubst %.asm, build/%.o, $(ALL_S_SRC))
 OBJS := $(C_OBJS) $(S_OBJS)
 
 
-all: bin/boot.bin bin/kernel.bin
+all: build_bootloader bin/kernel.bin
 	dd if=/dev/zero of=snapos.img bs=1M count=64 status=none
 	parted -s snapos.img mklabel msdos mkpart primary ext2 1MiB 100% set 1 boot on
 	mkdir -p /tmp/snapos_mnt
@@ -47,15 +47,8 @@ build/%.o: %.asm
 	@mkdir -p $(dir $@)
 	$(ASM) $(ASMFLAGS) $< -o $@
 
-./bin/boot.bin: ./boot/boot.asm ./bin/stage2.bin
-	@STAGE2_SIZE=$$(stat -c%s bin/stage2.bin); \
-	STAGE2_SECTORS=$$(( ($$STAGE2_SIZE + 511) / 512 )); \
-	nasm -f bin ./boot/boot.asm -d STAGE2_SECTOR_COUNT=$$STAGE2_SECTORS -o ./bin/boot.bin 
-
-./bin/stage2.bin: ./boot/stage2.asm
-	nasm -f elf32 ./boot/stage2.asm -o ./build/boot/stage2.asm.o
-	i686-elf-gcc -m32 -march=i386 -ffreestanding -fno-pie -Os -c ./boot/loadkernel.c -o ./build/boot/loadkernel.o
-	i686-elf-ld -m elf_i386 -T ./boot/stage2.ld ./build/boot/stage2.asm.o ./build/boot/loadkernel.o -o ./bin/stage2.bin
+build_bootloader:
+	make -C arch/$(ARCH)/boot
 
 qemu:
 	qemu-system-x86_64 -m 512M -drive format=raw,file=snapos.img -serial stdio -d int -no-reboot

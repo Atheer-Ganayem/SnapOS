@@ -535,8 +535,4 @@ lm_main:
   mov gs, ax
   mov fs, ax
 
-  mov r8, 0x04 ; testing in gdb
-  mov rax, 0xB8000
-  mov byte[rax], 'X'
-
-  jmp $
+  jmp 0xFFFFFFFF81000000

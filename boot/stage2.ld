@@ -18,7 +18,7 @@ SECTIONS
     *(.data)
   }
 
-  bss : {
+  .bss : {
     *(.bss)
   }
 }

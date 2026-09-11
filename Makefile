@@ -5,7 +5,7 @@ ASM = nasm
 CFLAGS = -ffreestanding -O2 -Wall -Wextra -Iinclude -Iarch/$(ARCH)/include -mcmodel=kernel -mno-red-zone -mno-sse -mno-sse2 -mno-mmx -mgeneral-regs-only
 ASMFLAGS = -f elf64
 
-CORE_SRC := $(wildcard kernel/*.c mm/*.c fs/*.c fs/ext2/*.c drivers/*/*.c)
+CORE_SRC := $(wildcard kernel/*.c mm/*.c fs/*.c fs/ext2/*.c drivers/*/*.c klibc/*.c)
 ARCH_C_SRC := $(wildcard arch/$(ARCH)/kernel/*.c arch/$(ARCH)/mm/*.c)
 ARCH_S_SRC := $(wildcard arch/$(ARCH)/kernel/*.asm)
 
@@ -51,7 +51,7 @@ build_bootloader:
 	make -C arch/$(ARCH)/boot
 
 qemu:
-	qemu-system-x86_64 -m 512M -drive format=raw,file=snapos.img -serial stdio -d int -no-reboot
+	qemu-system-x86_64 -m 1G -drive format=raw,file=snapos.img -serial stdio -d int -no-reboot
 
 qemu_gdb:
 	qemu-system-x86_64 -m 512M -drive format=raw,file=snapos.img -serial stdio -d int -no-reboot -s -S

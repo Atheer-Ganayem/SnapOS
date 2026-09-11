@@ -6,17 +6,17 @@
 #include <asm/setup.h>
 #include <asm/paging_types.h>
 
-struct phys_region regions[PHYS_REGION_MAX_SIZE];
-extern void _kernel_end;
+struct phys_region regions[PHYS_REGION_MAX_SIZE+1];
+extern char _kernel_end;
 
 uint8_t* early_bitmap;
 uint64_t max_paddr;
 uint64_t early_bitmap_size;
 
-static uint64_t find_highest_paddr(struct phys_region* regions, size_t len) {
+static uint64_t find_highest_usable_paddr(struct phys_region* regions, size_t len) {
   size_t max = 0;
   for (size_t i = 0; i < len; i++) {
-    if (regions[i].type != PHYS_REGION_BAD) {
+    if (regions[i].type == PHYS_REGION_USABLE) {
       uint64_t end = regions[i].base + regions[i].len;
       max = max > end ? max : end;
     }
@@ -24,34 +24,38 @@ static uint64_t find_highest_paddr(struct phys_region* regions, size_t len) {
   return max;
 }
 
+// Returns 0 if safe, if not, returns the address you should slide to if you hit a reserved area.
+static uint64_t get_collision_end(uint64_t start, uint64_t end, struct phys_region regions[], size_t len) {
+  for (size_t j = 0; j < len; j++) {
+    if (regions[j].type == PHYS_REGION_USABLE) continue;
+
+    uint64_t r_start = regions[j].base;
+    uint64_t r_end = r_start + regions[j].len;
+
+    if (start < r_end && end > r_start) {
+      return PAGE_ALIGN_UP(r_end); 
+    }
+  }
+  return 0; 
+}
+
 static uint8_t* early_bitmap_find_home(struct phys_region regions[], size_t len, size_t requested_size) {
   for (size_t i = 0; i < len; i++) {
-    if (regions[i].type != PHYS_REGION_USABLE) {
-      continue;
-    }
+    if (regions[i].type != PHYS_REGION_USABLE) continue;
 
-    uint64_t start = regions[i].base, end = regions[i].base + regions[i].len;
-    for (size_t j = 0; j < len; j++) {
-      if (regions[j].type == PHYS_REGION_USABLE) {
-        continue;
-      }
+    uint64_t cand_start = PAGE_ALIGN_UP(regions[i].base);
+    if (cand_start < MIN_USABLE_PADDR) cand_start = MIN_USABLE_PADDR;
+    
+    uint64_t usable_end = regions[i].base + regions[i].len;
 
-      if (regions[j].base < end && regions[j].base >= start) {
-        end = regions[j].base;
-      }
-
-      uint64_t j_end = regions[j].base + regions[j].len;
-      if (j_end <= end && j_end > start) {
-        start = j_end;
-      }
-
-      if (start >= end) {
-        break;
-      }
+    while (cand_start + requested_size <= usable_end) {
+      uint64_t collision_jump = get_collision_end(cand_start, cand_start + requested_size, regions, len);
       
-    }
-    if (start < end && end-start >= requested_size) {
-      return (uint8_t*)start;
+      if (collision_jump == 0) {
+        return (uint8_t*)cand_start; // Safe!
+      }
+
+      cand_start = collision_jump; 
     }
   }
 
@@ -82,13 +86,22 @@ static inline void early_bitmap_set_range_reserved(uint64_t start, uint64_t end)
   early_bitmap_set_range(start, end, BITMAP_RESERVED);
 }
 
+static void reserve_kernel(struct phys_region regions[], size_t len) {
+  regions[len].base = KERNEL_START_PHYS_ADDR;
+  regions[len].len = PAGE_ALIGN_UP((uint64_t)&_kernel_end - KERNEL_START_VIRT_ADDR);
+  regions[len++].type = PHYS_REGION_RESERVED;
+}
+
+
 int early_pmm_init() {
   size_t len = arch_get_memory_map(regions);
   if (len == 0) {
     return KSTATUS_ERR_NO_MEM_MAP;
   }
 
-  max_paddr = find_highest_paddr(regions, len);
+  reserve_kernel(regions, len++);
+
+  max_paddr = find_highest_usable_paddr(regions, len);
   if (max_paddr == 0) {
     return KSTATUS_ERR_NO_MEM_MAP;
   }
@@ -108,7 +121,6 @@ int early_pmm_init() {
     }
   }
   
-  early_bitmap_set_range_reserved(KERNEL_START_PHYS_ADDR, KERNEL_START_PHYS_ADDR + (uint64_t)&_kernel_end - KERNEL_START_VIRT_ADDR);
   early_bitmap_set_range_reserved((uint64_t)early_bitmap, (uint64_t)early_bitmap + early_bitmap_size);
   
   for (size_t i = 0; i < len; i++) {

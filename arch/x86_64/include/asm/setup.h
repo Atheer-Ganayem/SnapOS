@@ -6,6 +6,7 @@
 
 #define E820_ARR_MAX_SIZE 128
 #define PHYS_REGION_MAX_SIZE (E820_ARR_MAX_SIZE * 2) // because regions migh overlap an need splitting
+#define MIN_USABLE_PADDR 0x100000
 
 size_t arch_get_memory_map(struct phys_region mem_regions[]);
 

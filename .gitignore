@@ -1,3 +1,6 @@
 /bin/*
 snapos.img
 /build/*
+compile_commands.json
+.vscode
+/.vscode/*

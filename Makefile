@@ -2,7 +2,7 @@ ARCH ?= x86_64
 CC = $(ARCH)-elf-gcc
 ASM = nasm
 
-CFLAGS = -ffreestanding -O2 -Wall -Wextra -Iinclude -Iarch/$(ARCH)/include -mcmodel=kernel -mno-red-zone
+CFLAGS = -ffreestanding -O2 -Wall -Wextra -Iinclude -Iarch/$(ARCH)/include -mcmodel=kernel -mno-red-zone -mno-sse -mno-sse2 -mno-mmx -mgeneral-regs-only
 ASMFLAGS = -f elf64
 
 CORE_SRC := $(wildcard kernel/*.c mm/*.c fs/*.c fs/ext2/*.c drivers/*/*.c)

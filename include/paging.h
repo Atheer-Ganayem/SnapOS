@@ -1,7 +1,14 @@
 #ifndef PAGING_H
 #define PAGING_H
 
-#include <asm/pgtable-types.h>
+#include <asm/pgtable_types.h>
 
+#define PAGE_PRESENT _PAGE_PRESENT
+#define PAGE_RW  _PAGE_RW 
+#define PAGE_USER _PAGE_USER
+#define PAGE_WRITE_THROUGH _PAGE_WRITE_THROUGH
+#define PAGE_CACHE_DISABLE _PAGE_CACHE_DISABLE
+#define PAGE_ACCESSED _PAGE_ACCESSED
+#define PAGE_NO_EXECUTE _PAGE_NO_EXECUTE 
 
 #endif

@@ -2,10 +2,13 @@
 #include <stdbool.h>
 #include <mm.h>
 
-static volatile uint16_t* vga_buf = (volatile uint16_t*) PHYS_TO_VIRT(0xB8000);
+static volatile uint16_t* vga_buf;
 static size_t x = 0, y = 0;
 
 void vga_init() {
+  ioremap(0xB8000, VGA_BUF_WIDTH * VGA_BUF_HEIGHT * 2);
+  vga_buf = (volatile uint16_t*) PHYS_TO_VIRT(0xB8000);
+
   for (int i = 0; i < VGA_BUF_WIDTH * VGA_BUF_HEIGHT; i++) {
     vga_buf[i] = 0x00; 
   }

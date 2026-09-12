@@ -1,8 +1,9 @@
-#ifndef PGTABLE_TYPES_H
-#define PGTABLE_TYPES_H
+#ifndef ASM_PGTABLE_H
+#define ASM_PGTABLE_H
 
 #include <stdint.h>
-#include <asm/special_insns.h>
+
+extern bool cpu_has_1g_pages;
 
 #define _PAGE_PRESENT       1 << 0
 #define _PAGE_RW            1 << 1
@@ -10,13 +11,15 @@
 #define _PAGE_WRITE_THROUGH 1 << 3
 #define _PAGE_CACHE_DISABLE 1 << 4
 #define _PAGE_ACCESSED      1 << 5
-#define _PAGE_NO_EXECUTE    1 << 63
+#define _PAGE_PS            1 << 7
+#define _PAGE_NO_EXECUTE    1ULL << 63
 
 #define PAGE_SIZE_4K 4096ULL
 #define PAGE_SIZE_2M (PAGE_SIZE_4K * 1024ULL * 2ULL)
 #define PAGE_SIZE_1G (1024ULL * 1024ULL * 1024ULL)
 #define PAGE_SIZE PAGE_SIZE_4K
 #define PAGE_ALIGN_UP(x) (((x) + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1))
+#define PAGE_ALIGN_DOWN(x) ((x) & ~(PAGE_SIZE - 1))
 
 #define PGD_INDEX(vaddr) ((vaddr >> 39) & 0x1FF)
 #define PUD_INDEX(vaddr) ((vaddr >> 30) & 0x1FF)
@@ -40,13 +43,15 @@ typedef struct {uint64_t pte;} pte_t;
 #define make_pmd(x) ((pmd_t){ (x) })
 #define make_pte(x) ((pte_t){ (x) })
 
+typedef struct {
+  uint32_t prot_flags;
+  bool allow_overwrite;
+} mmu_map_opts_t;
 
 void arch_mmu_map(pgd_t* pgd, uint64_t vaddr, uint64_t paddr, uint32_t flags);
-
+void mmu_map_range(pgd_t* pgd, uint64_t vaddr, uint64_t paddr, uint64_t len, mmu_map_opts_t opts);
 void arch_mmu_unmap(pgd_t* pgd, uint64_t vaddr);
 
-void arch_mmu_switch(pgd_t* pgd) {
-  switch_cr3(pgd_val(*pgd));
-}
+void arch_mmu_switch(uint64_t pgd_phys);
 
 #endif

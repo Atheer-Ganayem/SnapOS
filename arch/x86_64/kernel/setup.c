@@ -1,5 +1,7 @@
-#include <asm/setup.h>
 #include <stdint.h>
+#include <stdbool.h>
+#include <asm/setup.h>
+#include <asm/special_insns.h>
 
 #define MEMORY_MAP_ADDR       0xFFFFFFFF80000510ULL
 #define MEMORY_MAP_SIZE_ADDR  0xFFFFFFFF80000500ULL
@@ -62,4 +64,9 @@ size_t arch_get_memory_map(struct phys_region regions[]) {
   }
 
   return index;
+}
+
+extern bool cpu_has_1g_pages;
+void init() {
+  cpu_has_1g_pages = check_1gib_pages_support();
 }

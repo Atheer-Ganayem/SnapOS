@@ -10,9 +10,11 @@ section .entry
 
 global _start
 extern kmain
+extern init
 
 _start:
   mov rsp, stack_top
+  call init
   call kmain
 .err:
   cli

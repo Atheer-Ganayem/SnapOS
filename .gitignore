@@ -4,3 +4,5 @@ snapos.img
 compile_commands.json
 .vscode
 /.vscode/*
+bochsrc.txt
+bochsout.txt

@@ -2,11 +2,12 @@
 #define MM_H
 
 #include <stdint.h>
+#include <types.h>
 
 extern char _kernel_end;
 
 #define KERNEL_START_PHYS_ADDR  0x1000000 // 16MiB
-#define KERNEL_START_VIRT_ADDR  0xFFFFFFFF10000000 // 16MiB
+#define KERNEL_START_VIRT_ADDR  0xFFFFFFFF81000000 // 16MiB
 #define MIN_USABLE_PADDR _MIN_USABLE_PADDR
 #define ID_VIRT_REGION_START    0xffff888000000000
 #define PHYS_TO_VIRT(x) ((void*)(((unsigned long long)x) + ID_VIRT_REGION_START))
@@ -32,5 +33,8 @@ struct phys_region {
 
 int early_pmm_init();
 void* early_pmm_alloc_frame();
+
+kstatus_t vmm_init();
+void* ioremap(uint64_t paddr, uint64_t size);
 
 #endif

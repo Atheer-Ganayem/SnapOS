@@ -8,9 +8,9 @@
 
 pmm_alloc_frame_func_t pmm_alloc_frame = early_pmm_alloc_frame;
 
-struct phys_region raw[PHYS_REGION_MAX_SIZE];
-struct phys_region clean[PHYS_REGION_MAX_SIZE];
-static size_t raw_count = 0, clean_count = 0;
+struct phys_region raw[PHYS_REGION_MAX_SIZE+1];
+struct phys_region clean[PHYS_REGION_MAX_SIZE+1];
+size_t raw_count = 0, clean_count = 0;
 
 static struct {
   struct phys_region* reg;
@@ -131,6 +131,10 @@ static void pa_init() {
 
 int early_pmm_init() {
   raw_count   = arch_get_memory_map(raw);
+  raw[raw_count].start = PAGE_ALIGN_DOWN(KERNEL_START_PHYS_ADDR);
+  raw[raw_count].end = PAGE_ALIGN_UP(KERNEL_START_PHYS_ADDR + (uint64_t)&_kernel_end - KERNEL_START_VIRT_ADDR);
+  raw[raw_count++].type = PHYS_REGION_RESERVED;
+
   clean_count = pmm_sanitize_memory_map(raw, raw_count, clean, PHYS_REGION_MAX_SIZE);
   if (raw_count == 0 || clean_count == 0) {
     return KSTATUS_ERR_NO_MEM_MAP;

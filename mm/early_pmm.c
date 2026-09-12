@@ -4,146 +4,154 @@
 #include <mm.h>
 #include <types.h>
 #include <asm/setup.h>
-#include <asm/paging_types.h>
+#include <asm/paging.h>
 
-struct phys_region regions[PHYS_REGION_MAX_SIZE+1];
-extern char _kernel_end;
+pmm_alloc_frame_func_t pmm_alloc_frame = early_pmm_alloc_frame;
 
-uint8_t* early_bitmap;
-uint64_t max_paddr;
-uint64_t early_bitmap_size;
+struct phys_region raw[PHYS_REGION_MAX_SIZE];
+struct phys_region clean[PHYS_REGION_MAX_SIZE];
+static size_t raw_count = 0, clean_count = 0;
 
-static uint64_t find_highest_usable_paddr(struct phys_region* regions, size_t len) {
-  size_t max = 0;
-  for (size_t i = 0; i < len; i++) {
-    if (regions[i].type == PHYS_REGION_USABLE) {
-      uint64_t end = regions[i].base + regions[i].len;
-      max = max > end ? max : end;
+static struct {
+  struct phys_region* reg;
+  size_t idx;
+  uint64_t cursor;
+} pa = {NULL, 0, 0};
+
+static const int region_priority[PHYS_REGION_TYPE_COUNT] = {
+  [PHYS_REGION_USABLE]           = 0,
+  [PHYS_REGION_RESERVED]         = 1,
+  [PHYS_REGION_ACPI_RECLAIMABLE] = 1,
+  [PHYS_REGION_ACPI_NVS]         = 2,
+  [PHYS_REGION_BAD]              = 3,
+};
+
+static void sort_u64(uint64_t arr[], size_t n) {
+  for (size_t i = 0; i < n; i++) {
+    uint64_t min_idx = i;
+    for (size_t j = i+1; j < n; j++) {
+      min_idx = arr[min_idx] <= arr[j] ? min_idx : j;
+    }
+    if (min_idx != i) {
+      uint64_t tmp = arr[i];
+      arr[i] = arr[min_idx];
+      arr[min_idx] = tmp;
     }
   }
-  return max;
 }
 
-// Returns 0 if safe, if not, returns the address you should slide to if you hit a reserved area.
-static uint64_t get_collision_end(uint64_t start, uint64_t end, struct phys_region regions[], size_t len) {
-  for (size_t j = 0; j < len; j++) {
-    if (regions[j].type == PHYS_REGION_USABLE) continue;
+static inline uint64_t max_u64(uint64_t a, uint64_t b) {
+  return a > b ? a : b;
+}
 
-    uint64_t r_start = regions[j].base;
-    uint64_t r_end = r_start + regions[j].len;
-
-    if (start < r_end && end > r_start) {
-      return PAGE_ALIGN_UP(r_end); 
-    }
+static size_t pmm_sanitize_memory_map(struct phys_region in[], size_t in_count, struct phys_region out[], size_t out_max) {
+  if (in_count == 0) {
+    return 0;
   }
-  return 0; 
-}
 
-static uint8_t* early_bitmap_find_home(struct phys_region regions[], size_t len, size_t requested_size) {
-  for (size_t i = 0; i < len; i++) {
-    if (regions[i].type != PHYS_REGION_USABLE) continue;
+  static uint64_t boundaries[PHYS_REGION_MAX_SIZE*2];
+  size_t nb = 0;
+  for (size_t i = 0; i < in_count; i++) {
+    boundaries[nb++] = in[i].start;
+    boundaries[nb++] = in[i].end;
+  }
 
-    uint64_t cand_start = PAGE_ALIGN_UP(regions[i].base);
-    if (cand_start < MIN_USABLE_PADDR) cand_start = MIN_USABLE_PADDR;
-    
-    uint64_t usable_end = regions[i].base + regions[i].len;
+  sort_u64(boundaries, nb);
 
-    while (cand_start + requested_size <= usable_end) {
-      uint64_t collision_jump = get_collision_end(cand_start, cand_start + requested_size, regions, len);
-      
-      if (collision_jump == 0) {
-        return (uint8_t*)cand_start; // Safe!
+  size_t nu = 0;
+  for (size_t i = 0; i < nb; i++) {
+    if (i == 0 || boundaries[i] != boundaries[nu - 1])
+      boundaries[nu++] = boundaries[i];
+  }
+
+  size_t out_count = 0;
+
+  for (size_t i = 0; i + 1 < nu; i++) {
+    uint64_t sub_start = boundaries[i];
+    uint64_t sub_end   = boundaries[i + 1];
+    bool covered = false;
+    int best_priority = -1;
+    phys_region_type_t best_type = PHYS_REGION_USABLE;
+
+  for (size_t j = 0; j < in_count; j++) {
+    if (in[j].start <= sub_start && in[j].end >= sub_end) {
+      covered = true;
+      int p = region_priority[in[j].type];
+      if (p > best_priority) {
+        best_priority = p;
+        best_type = in[j].type;
       }
-
-      cand_start = collision_jump; 
     }
   }
 
-  return NULL;
-}
+  if (!covered) continue;
 
-static void early_bitmap_set_range(uint64_t start, uint64_t end, bool isreserved) {
-  uint64_t start_frame = start / PAGE_SIZE;
-  uint64_t end_frame = PAGE_ALIGN_UP(end) / PAGE_SIZE;
-
-  for (uint64_t i = start_frame; i < end_frame; i++) {
-    uint64_t byte_idx = i / 8;
-    uint64_t bit_idx = i % 8;
-
-    if (isreserved) {
-      early_bitmap[byte_idx] |= (1 << bit_idx);
-    } else {
-      early_bitmap[byte_idx] &= ~(1 << bit_idx);
+  if (out_count > 0 &&
+    out[out_count - 1].type == best_type &&
+    out[out_count - 1].end == sub_start) {
+    out[out_count - 1].end = sub_end;
+  } else {
+    if (out_count >= out_max) {
+      panic("pmm_sanitize_memory_map: out full.");
+    }
+    out[out_count].start = sub_start;
+    out[out_count].end   = sub_end;
+    out[out_count].type  = best_type;
+    out_count++;
     }
   }
+
+  return out_count;
 }
 
-static inline void early_bitmap_set_range_free(uint64_t start, uint64_t end) {
-  early_bitmap_set_range(start, end, BITMAP_FREE);
+
+static void pa_next() {
+  for (size_t i = pa.idx+1; i < clean_count; i++) {
+    if (clean[i].type != PHYS_REGION_USABLE) {
+      continue;
+    }
+    if (clean[i].end <= MIN_USABLE_PADDR) {
+      continue;
+    }
+
+    pa.reg = &clean[i];
+    pa.idx = i;
+    pa.cursor = PAGE_ALIGN_UP(max_u64(MIN_USABLE_PADDR, pa.reg->start));
+    return;
+  }
+
+  pa.reg = NULL;
+  pa.idx = clean_count;
 }
 
-static inline void early_bitmap_set_range_reserved(uint64_t start, uint64_t end) {
-  early_bitmap_set_range(start, end, BITMAP_RESERVED);
+static void pa_init() {
+  pa.idx = (size_t)-1;
+  pa_next();
 }
-
-static void reserve_kernel(struct phys_region regions[], size_t len) {
-  regions[len].base = KERNEL_START_PHYS_ADDR;
-  regions[len].len = PAGE_ALIGN_UP((uint64_t)&_kernel_end - KERNEL_START_VIRT_ADDR);
-  regions[len++].type = PHYS_REGION_RESERVED;
-}
-
 
 int early_pmm_init() {
-  size_t len = arch_get_memory_map(regions);
-  if (len == 0) {
+  raw_count   = arch_get_memory_map(raw);
+  clean_count = pmm_sanitize_memory_map(raw, raw_count, clean, PHYS_REGION_MAX_SIZE);
+  if (raw_count == 0 || clean_count == 0) {
     return KSTATUS_ERR_NO_MEM_MAP;
   }
 
-  reserve_kernel(regions, len++);
-
-  max_paddr = find_highest_usable_paddr(regions, len);
-  if (max_paddr == 0) {
-    return KSTATUS_ERR_NO_MEM_MAP;
-  }
-
-  early_bitmap_size = (PAGE_ALIGN_UP(max_paddr) / PAGE_SIZE) /8;
-
-  early_bitmap = early_bitmap_find_home(regions, len, early_bitmap_size);
-  if (!early_bitmap) {
+  pa_init();
+  if (pa.reg == NULL) {
     return KSTATUS_ERR_NO_MEMORY;
-  }
-
-  memset(early_bitmap, 0xFF, early_bitmap_size);
-  
-  for (size_t i = 0; i < len; i++) {
-    if (regions[i].type == PHYS_REGION_USABLE) {
-      early_bitmap_set_range_free(regions[i].base, regions[i].base + regions[i].len);
-    }
-  }
-  
-  early_bitmap_set_range_reserved((uint64_t)early_bitmap, (uint64_t)early_bitmap + early_bitmap_size);
-  
-  for (size_t i = 0; i < len; i++) {
-    if (regions[i].type != PHYS_REGION_USABLE) {
-      early_bitmap_set_range_reserved(regions[i].base, regions[i].base + regions[i].len);
-    }
   }
 
   return KSTATUS_SUCCESS;
 }
 
 void* early_pmm_alloc_frame() {
-  for (size_t i = 0; i < early_bitmap_size; i++) {
-    if (early_bitmap[i] == 0xFF) {
-      continue;
+  while (pa.reg) {
+    if (pa.cursor + PAGE_SIZE <= pa.reg->end) {
+      void* frame = (void*)pa.cursor;
+      pa.cursor += PAGE_SIZE;
+      return frame;
     }
-    
-    for (uint8_t bit_idx = 0; bit_idx < 8; bit_idx++) {
-      if (!(early_bitmap[i] & (1 << bit_idx))) {
-        early_bitmap[i] |= (1 << bit_idx);
-        return (void*)((i * 8 + bit_idx) * PAGE_SIZE);
-      }
-    }
+    pa_next();
   }
 
   return NULL;

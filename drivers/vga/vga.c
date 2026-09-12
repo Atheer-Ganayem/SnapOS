@@ -1,7 +1,8 @@
 #include <drivers/vga.h>
 #include <stdbool.h>
+#include <mm.h>
 
-static volatile uint16_t* vga_buf = (volatile uint16_t*) (0xFFFFFFFF80000000 + 0xB8000);
+static volatile uint16_t* vga_buf = (volatile uint16_t*) PHYS_TO_VIRT(0xB8000);
 static size_t x = 0, y = 0;
 
 void vga_init() {

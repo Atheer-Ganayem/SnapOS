@@ -10,4 +10,6 @@ typedef enum {
   KSTATUS_ERR_UNIMPLEMENTED = 5
 } kstatus_t;
 
+void panic(char* s);
+
 #endif

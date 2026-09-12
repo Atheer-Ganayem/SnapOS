@@ -391,6 +391,12 @@ create_page_table:
   mov dword[PML4_ADDR], eax
   mov dword[PML4_ADDR+4], 0
 
+  ; id region
+  mov eax, PML4_ADDR + 4096  
+  or eax, 0x03
+  mov dword[PML4_ADDR + 2184], eax
+  mov dword[PML4_ADDR + 2188], 0
+
   ; last entry
   mov eax, PML4_ADDR + (4096*2)
   or eax, 0x03
@@ -409,6 +415,8 @@ create_page_table:
   mov dword[PML4_ADDR+4096+4], 0
 
   ret
+
+.create_PDPT_ID
 
 .create_PDPT_high:
   mov edi, PML4_ADDR+(4096*2)

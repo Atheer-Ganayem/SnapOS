@@ -1,7 +1,7 @@
 #ifndef PAGING_H
 #define PAGING_H
 
-#include <asm/pgtable_types.h>
+#include <asm/paging.h>
 
 #define PAGE_PRESENT _PAGE_PRESENT
 #define PAGE_RW  _PAGE_RW 

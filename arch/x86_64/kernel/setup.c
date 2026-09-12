@@ -4,8 +4,6 @@
 #define MEMORY_MAP_ADDR       0xFFFFFFFF80000510ULL
 #define MEMORY_MAP_SIZE_ADDR  0xFFFFFFFF80000500ULL
 
-extern void _kernel_end;
-
 enum e820_type {
   E820_USABLE = 1, 
   E820_RESERVED,
@@ -27,8 +25,8 @@ static size_t phys_region_push(struct phys_region regions[], size_t i, uint64_t 
     return i;
   }
 
-  regions[i].base = base;
-  regions[i].len = len;
+  regions[i].start = base;
+  regions[i].end = base + len;
   
   switch (type) {
   case E820_USABLE:
@@ -38,10 +36,10 @@ static size_t phys_region_push(struct phys_region regions[], size_t i, uint64_t 
     regions[i].type = PHYS_REGION_RESERVED;
     break;
   case E820_ACPI_RECLAIMABLE:
-    regions[i].type = PHYS_REGION_ACPI;
+    regions[i].type = PHYS_REGION_ACPI_RECLAIMABLE;
     break;
   case E820_ACPI_NVS:
-    regions[i].type = PHYS_REGION_ACPI;
+    regions[i].type = PHYS_REGION_ACPI_NVS;
     break;
   case E820_AHCI_BAD:
     regions[i].type = PHYS_REGION_BAD;

@@ -60,5 +60,6 @@ clean:
 	rm -rf ./bin/boot.bin
 	rm -rf ./bin/stage2.bin
 	rm -rf ./bin/kernel.bin
-	rm -rf ./buid/*
+	rm -rf ./build/*
+	mkdir ./build/boot
 	rm -rf snapos.img

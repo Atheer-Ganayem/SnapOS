@@ -35,7 +35,7 @@ static pte_t* pmd_to_pte(pmd_t pmd) {
 }
 
 static void mmu_alloc_table(void* entry_ptr) {
-  void* phys_frame = pmm_alloc_frame();
+  void* phys_frame = pmm_current_alloc_frame();
   if (!phys_frame) {
     panic("mmu_alloc_table: no free frames.");
   }

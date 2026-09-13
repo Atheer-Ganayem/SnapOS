@@ -2,7 +2,9 @@
 #define MM_H
 
 #include <stdint.h>
+#include <stddef.h>
 #include <types.h>
+#include <asm/setup.h>
 
 extern char _kernel_end;
 
@@ -11,10 +13,11 @@ extern char _kernel_end;
 #define MIN_USABLE_PADDR _MIN_USABLE_PADDR
 #define ID_VIRT_REGION_START    0xffff888000000000
 #define PHYS_TO_VIRT(x) ((void*)(((unsigned long long)x) + ID_VIRT_REGION_START))
+#define VIRT_TO_PHYS(x) ((void*)(((unsigned long long)x) - ID_VIRT_REGION_START))
 
 typedef void* (*pmm_alloc_frame_func_t)(void);
 
-extern pmm_alloc_frame_func_t pmm_alloc_frame;
+extern pmm_alloc_frame_func_t pmm_current_alloc_frame;
 
 typedef enum { 
   PHYS_REGION_USABLE = 1, 
@@ -33,8 +36,16 @@ struct phys_region {
 
 int early_pmm_init();
 void* early_pmm_alloc_frame();
+void* early_pmm_alloc_continuous_frames(size_t count);
+void* early_pmm_get_max_usable();
+void* ealry_pmm_get_cursor();
+void* pmm_alloc_frame();
 
 kstatus_t vmm_init();
 void* ioremap(uint64_t paddr, uint64_t size);
+
+kstatus_t pmm_init();
+void* pmm_alloc_frame();
+void pmm_free_frame(void* paddr);
 
 #endif

@@ -11,7 +11,7 @@ extern size_t clean_count;
 static pgd_t* kernel_pgd;
 
 kstatus_t vmm_init() {
-  void* pgd_raw = pmm_alloc_frame();
+  void* pgd_raw = pmm_current_alloc_frame();
   if (!pgd_raw) {
     return KSTATUS_ERR_NO_MEMORY;
   }

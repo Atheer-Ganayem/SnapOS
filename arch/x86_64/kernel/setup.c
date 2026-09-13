@@ -54,7 +54,7 @@ static size_t phys_region_push(struct phys_region regions[], size_t i, uint64_t 
   return i + 1;
 }
 
-size_t arch_get_memory_map(struct phys_region regions[]) {
+size_t arch_get_memory_map(struct phys_region* regions) {
   uint16_t size = *((volatile uint16_t*)MEMORY_MAP_SIZE_ADDR);
   const volatile struct e820_entry* entry = (const volatile struct e820_entry*)MEMORY_MAP_ADDR;
 

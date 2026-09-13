@@ -6,7 +6,7 @@
 #include <asm/setup.h>
 #include <asm/paging.h>
 
-pmm_alloc_frame_func_t pmm_alloc_frame = early_pmm_alloc_frame;
+pmm_alloc_frame_func_t pmm_current_alloc_frame = early_pmm_alloc_frame;
 
 struct phys_region raw[PHYS_REGION_MAX_SIZE+1];
 struct phys_region clean[PHYS_REGION_MAX_SIZE+1];
@@ -104,6 +104,20 @@ static size_t pmm_sanitize_memory_map(struct phys_region in[], size_t in_count, 
   return out_count;
 }
 
+void* early_pmm_get_max_usable() {
+  void* max = NULL;
+  for (size_t i = 0; i < clean_count; i++) {
+    if (clean[i].type != PHYS_REGION_USABLE) continue;
+    max = (void*)clean[i].end;
+  }
+
+  return max;
+}
+
+void* ealry_pmm_get_cursor() {
+  return (void*)pa.cursor;
+}
+
 
 static void pa_next() {
   for (size_t i = pa.idx+1; i < clean_count; i++) {
@@ -155,6 +169,20 @@ void* early_pmm_alloc_frame() {
       pa.cursor += PAGE_SIZE;
       return frame;
     }
+    pa_next();
+  }
+
+  return NULL;
+}
+
+void* early_pmm_alloc_continuous_frames(size_t count) {
+  size_t size = PAGE_SIZE * count;
+  while (pa.reg) {
+  if (pa.cursor + size <= pa.reg->end) {
+    void* start = (void*)pa.cursor;
+    pa.cursor += size;
+    return start;
+  }
     pa_next();
   }
 

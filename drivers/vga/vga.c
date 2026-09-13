@@ -1,6 +1,7 @@
 #include <drivers/vga.h>
 #include <stdbool.h>
 #include <mm.h>
+#include <asm/io.h>
 
 static volatile uint16_t* vga_buf;
 static size_t x = 0, y = 0;
@@ -10,7 +11,7 @@ void vga_init() {
   vga_buf = (volatile uint16_t*) PHYS_TO_VIRT(0xB8000);
 
   for (int i = 0; i < VGA_BUF_WIDTH * VGA_BUF_HEIGHT; i++) {
-    vga_buf[i] = 0x00; 
+    writew_relaxed((void*)(vga_buf + i), 0x00);
   }
 }
 
@@ -33,7 +34,8 @@ void vga_putchar_color(char c, enum vga_color color) {
     return;
   } 
 
-  vga_buf[y * VGA_BUF_WIDTH + x] = makechar(c, color);
+  size_t offset = y * VGA_BUF_WIDTH + x;
+  writew_relaxed((void*)(vga_buf + offset), makechar(c, color));
   
   x++;
   if (x % VGA_BUF_WIDTH == 0) {

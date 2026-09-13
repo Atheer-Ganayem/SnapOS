@@ -3,9 +3,9 @@
 #include <types.h>
 
 void panic(char* s) {
-  if (s) {
-    vga_print_color(s, VGA_COLOR_RED);
-  }
+  // if (s) {
+  //   vga_print_color(s, VGA_COLOR_RED);
+  // }
 
   while (1) {};
 }
@@ -18,6 +18,7 @@ void kmain() {
   if (res != KSTATUS_SUCCESS) {
     panic(NULL);
   }
+
   res = vmm_init();
   if (res != KSTATUS_SUCCESS) {
     panic(NULL);
@@ -28,19 +29,6 @@ void kmain() {
   vga_print("vmm initalized.\n");
 
   vga_print("VGA text mode initialized.\n");
-
-
-  uint64_t max_usable = 0;
-  for (size_t i = 0; i < clean_count; i++) {
-    if (clean[i].type == PHYS_REGION_USABLE) {
-      max_usable = clean[i].end;
-    }
-  }
-
-  max_usable = PHYS_TO_VIRT(max_usable)-4096;
-
-  *(char*)max_usable = 'x';
-  vga_putchar(*(char*)max_usable);
 
   while (1) {}
 }

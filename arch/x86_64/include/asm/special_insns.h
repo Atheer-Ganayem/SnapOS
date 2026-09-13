@@ -16,4 +16,6 @@ static inline uint64_t switch_cr3(uint64_t new_val) {
 
 extern void flush_tlb_single(void* vaddr);
 
+extern void enable_no_execute();
+
 #endif

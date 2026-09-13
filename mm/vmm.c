@@ -3,6 +3,7 @@
 #include <asm/paging.h>
 #include <mm.h>
 #include <string.h>
+#include <paging.h>
 
 extern struct phys_region clean[];
 extern size_t clean_count;
@@ -19,10 +20,8 @@ kstatus_t vmm_init() {
 
   kernel_pgd = (pgd_t*)PHYS_TO_VIRT((uint64_t)pgd_raw);
 
-  mmu_map_opts_t direct_map_opts = { .prot_flags = _PAGE_RW | _PAGE_NO_EXECUTE, .allow_overwrite = false };
-  mmu_map_opts_t kernel_opts     = { .prot_flags = _PAGE_RW, .allow_overwrite = true };
-
-  char buf[17];
+  mmu_map_opts_t direct_map_opts = { .prot_flags = PAGE_RW | PAGE_NO_EXECUTE, .allow_overwrite = false };
+  mmu_map_opts_t kernel_opts     = { .prot_flags = PAGE_RW, .allow_overwrite = true };
 
   for (size_t i = 0; i < clean_count; i++) {
     if (clean[i].type != PHYS_REGION_USABLE) continue;
@@ -48,9 +47,9 @@ void* ioremap(uint64_t paddr, uint64_t size) {
   uint64_t size_aligned = PAGE_ALIGN_UP(size + offset);
 
   mmu_map_opts_t opts = {.allow_overwrite = true,
-      .prot_flags = _PAGE_RW | _PAGE_CACHE_DISABLE | _PAGE_WRITE_THROUGH};
+      .prot_flags = PAGE_RW | PAGE_CACHE_DISABLE | PAGE_WRITE_THROUGH};
 
-  mmu_map_range(kernel_pgd, PHYS_TO_VIRT(paligned), paligned, size_aligned, opts);
+  mmu_map_range(kernel_pgd, (uint64_t)PHYS_TO_VIRT(paligned), paligned, size_aligned, opts);
 
-  return PHYS_TO_VIRT(paligned + size_aligned);
+  return PHYS_TO_VIRT(paddr);
 }

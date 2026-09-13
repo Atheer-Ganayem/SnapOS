@@ -5,14 +5,14 @@
 
 extern bool cpu_has_1g_pages;
 
-#define _PAGE_PRESENT       1 << 0
-#define _PAGE_RW            1 << 1
-#define _PAGE_USER          1 << 2
-#define _PAGE_WRITE_THROUGH 1 << 3
-#define _PAGE_CACHE_DISABLE 1 << 4
-#define _PAGE_ACCESSED      1 << 5
-#define _PAGE_PS            1 << 7
-#define _PAGE_NO_EXECUTE    1ULL << 63
+#define _PAGE_PRESENT       (1ULL << 0)
+#define _PAGE_RW            (1ULL << 1)
+#define _PAGE_USER          (1ULL << 2)
+#define _PAGE_WRITE_THROUGH (1ULL << 3)
+#define _PAGE_CACHE_DISABLE (1ULL << 4)
+#define _PAGE_ACCESSED      (1ULL << 5)
+#define _PAGE_PS            (1ULL << 7)
+#define _PAGE_NO_EXECUTE    (1ULL << 63)
 
 #define PAGE_SIZE_4K 4096ULL
 #define PAGE_SIZE_2M (PAGE_SIZE_4K * 1024ULL * 2ULL)
@@ -44,14 +44,13 @@ typedef struct {uint64_t pte;} pte_t;
 #define make_pte(x) ((pte_t){ (x) })
 
 typedef struct {
-  uint32_t prot_flags;
+  uint64_t prot_flags;
   bool allow_overwrite;
 } mmu_map_opts_t;
 
-void arch_mmu_map(pgd_t* pgd, uint64_t vaddr, uint64_t paddr, uint32_t flags);
 void mmu_map_range(pgd_t* pgd, uint64_t vaddr, uint64_t paddr, uint64_t len, mmu_map_opts_t opts);
 void arch_mmu_unmap(pgd_t* pgd, uint64_t vaddr);
 
-void arch_mmu_switch(uint64_t pgd_phys);
+void arch_mmu_switch(void* pgd_phys);
 
 #endif

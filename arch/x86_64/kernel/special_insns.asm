@@ -6,6 +6,7 @@ global read_cr3
 global write_cr3
 global flush_tlb_single
 global check_1gib_pages_support
+global enable_no_execute
 
 read_cr3:
   mov rax, cr3
@@ -29,4 +30,11 @@ check_1gib_pages_support:
 
 .not_supported:
   mov eax, 0
+  ret
+
+enable_no_execute:
+  mov ecx, 0xC0000080
+  rdmsr
+  or eax, (1 << 11)
+  wrmsr
   ret

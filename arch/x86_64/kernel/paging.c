@@ -96,6 +96,7 @@ void mmu_map_one(pgd_t* pgd, uint64_t vaddr, uint64_t paddr, page_size_t size, m
     panic("mmu_map_one: vaddr is in an existing huge mapping, i still havent implemented splitting.");
   }
 
+
   uint64_t val = *(uint64_t*)entry;
   if (val & _PAGE_PRESENT) {
     if (!opts.allow_overwrite) {
@@ -119,25 +120,23 @@ void mmu_map_range(pgd_t* pgd, uint64_t vaddr, uint64_t paddr, uint64_t len, mmu
     page_size_t size;
     uint64_t chunk;
 
-    if (cpu_has_1g_pages && is_page_aligned(vaddr, PAGE_SIZE_1G) && is_page_aligned(paddr, PAGE_SIZE_1G) && len > PAGE_SIZE_1G) {
+    if (cpu_has_1g_pages && is_page_aligned(vaddr, PAGE_SIZE_1G) && is_page_aligned(paddr, PAGE_SIZE_1G) && len >= PAGE_SIZE_1G) {
       size = PAGE_1G;
       chunk = PAGE_SIZE_1G;
-    } else if (is_page_aligned(vaddr, PAGE_SIZE_2M) && is_page_aligned(paddr, PAGE_SIZE_2M) && len > PAGE_SIZE_2M) {
+    } else if (is_page_aligned(vaddr, PAGE_SIZE_2M) && is_page_aligned(paddr, PAGE_SIZE_2M) && len >= PAGE_SIZE_2M) {
       size = PAGE_2M;
       chunk = PAGE_SIZE_2M;
     } else {
       size = PAGE_4K;
       chunk = PAGE_SIZE_4K;
     }
-
+    
     mmu_map_one(pgd, vaddr, paddr, size, opts);
+
     vaddr += chunk; paddr += chunk; len -= chunk;
   }
 }
 
-void arch_mmu_switch(uint64_t pgd_phys) {
-  switch_cr3(pgd_phys);
+void arch_mmu_switch(void* pgd_phys) {
+  switch_cr3((uint64_t)pgd_phys);
 }
-
-// void arch_mmu_map(pgd_t* pgd, uint64_t vaddr, uint64_t paddr, uint32_t flags) {
-// }

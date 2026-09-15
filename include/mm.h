@@ -34,7 +34,7 @@ struct phys_region {
   phys_region_type_t type;
 };
 
-int early_pmm_init();
+kstatus_t early_pmm_init();
 void* early_pmm_alloc_frame();
 void* early_pmm_alloc_continuous_frames(size_t count);
 void* early_pmm_get_max_usable();
@@ -47,5 +47,14 @@ void* ioremap(uint64_t paddr, uint64_t size);
 kstatus_t pmm_init();
 void* pmm_alloc_frame();
 void pmm_free_frame(void* paddr);
+void* pmm_alloc_contiguous_frames(size_t count);
+void pmm_free_contiguous_frames(void* paddr, size_t count);
+
+void* kmalloc(size_t size);
+void kfree(void* ptr);
+void* alloc_page();
+void* alloc_pages(size_t count);
+void free_page(void* vaddr);
+void free_pages(void* vaddr, size_t count);
 
 #endif

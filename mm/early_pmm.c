@@ -143,7 +143,7 @@ static void pa_init() {
   pa_next();
 }
 
-int early_pmm_init() {
+kstatus_t early_pmm_init() {
   raw_count   = arch_get_memory_map(raw);
   raw[raw_count].start = PAGE_ALIGN_DOWN(KERNEL_START_PHYS_ADDR);
   raw[raw_count].end = PAGE_ALIGN_UP(KERNEL_START_PHYS_ADDR + (uint64_t)&_kernel_end - KERNEL_START_VIRT_ADDR);

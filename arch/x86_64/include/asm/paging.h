@@ -2,6 +2,7 @@
 #define ASM_PGTABLE_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 extern bool cpu_has_1g_pages;
 

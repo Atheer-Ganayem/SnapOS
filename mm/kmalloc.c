@@ -1,13 +1,10 @@
+#include <stddef.h>
+#include <string.h>
 #include <mm.h>
 #include <paging.h>
-#include <stddef.h>
 
-#include <drivers/vga.h>
-
-#define MIN_TIER        32
-#define MAX_TIER        1024
-#define TOO_BIG_SIZE    -1
 #define MAGIC           0xFC6792DA
+#define TOO_BIG_SIZE    -1
 
 struct pool_page_header {
   uint32_t magic;
@@ -106,6 +103,7 @@ void* kmalloc_big(size_t size) {
   struct big_alloc_node* cur_node = kmalloc(sizeof(struct big_alloc_node));
   if (!cur_node) {
     free_pages(vaddr, npages);
+    return NULL;
   }
 
   cur_node->vaddr = vaddr;
@@ -133,6 +131,15 @@ void* kmalloc(size_t size) {
 
   void* ptr = kmalloc_small(tier);
   return ptr;
+}
+
+void* kzalloc(size_t size) {
+  void* ptr = kmalloc(size);
+  if (!ptr) {
+    return NULL;
+  }
+
+  return memset(ptr, 0x00, size);
 }
 
 static void kfree_big(void* vaddr) {
@@ -165,7 +172,7 @@ void kfree(void* vaddr) {
   }
 
   if (--(header->count) == 0) {
-    free_page(vaddr);
+    free_page(header);
     return;
   }
 
@@ -181,12 +188,20 @@ void kfree(void* vaddr) {
 
 // returns vaddr of the page.
 void* alloc_page() {
-  return PHYS_TO_VIRT(pmm_alloc_frame());
+  void* frame = pmm_alloc_frame();
+  if (!frame) {
+    return NULL;
+  }
+  return PHYS_TO_VIRT(frame);
 }
 
 // returns vaddr of the first page of the contigious pages.
 void* alloc_pages(size_t count) {
-  return PHYS_TO_VIRT(pmm_alloc_contiguous_frames(count));
+  void* start_frame = pmm_alloc_contiguous_frames(count);
+  if (!start_frame) {
+    return NULL;
+  }
+  return PHYS_TO_VIRT(start_frame);
 }
 
 void free_page(void* vaddr) {

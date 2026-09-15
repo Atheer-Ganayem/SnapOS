@@ -87,3 +87,59 @@ void pmm_free_frame(void* paddr) {
 
   bitmap[byte_idx] &= ~(1 << bit_idx);
 }
+
+static void mark_taken(size_t pfn_start, size_t count) {
+  for (size_t i = pfn_start; i < pfn_start + count; i++) {
+    bitmap[i / 8] |= (1 << (i % 8));
+  }
+}
+
+static bool check_for_contiguous_frames(size_t count, size_t* idx, uint8_t* b) {
+  size_t i;
+  for (i = (*idx * 8) + *b; i/8 < size && count > 0 && !(bitmap[i/8] & (1 << (i%8))); i++, count--) {}
+
+  if (count != 0) i++;
+
+  *idx = i / 8;
+  *b = i % 8;
+
+  return count == 0;
+} 
+
+void* pmm_alloc_contiguous_frames(size_t count) {
+  if (count == 0) panic("pmm_alloc_contiguous_frames: count must be > 0.");
+  else if (count == 1) return pmm_alloc_frame();
+
+  uint8_t b = 0;
+  size_t idx = 0;
+  while (idx < size) {
+    if (bitmap[idx] == 0xff) {
+      idx++;
+      b = 0;
+      continue;
+    }
+    
+    size_t base_idx = idx;
+    uint8_t base_b = b; 
+    bool found = check_for_contiguous_frames(count, &idx, &b);
+
+    if (found) {
+      mark_taken(base_idx * 8 + base_b, count);
+      return (void*)((base_idx*8 + base_b) * PAGE_SIZE);
+    }
+  }
+
+  return NULL;
+}
+
+void pmm_free_contiguous_frames(void* paddr, size_t count) {
+  if (!IS_PAGE_ALIGNED((uintptr_t)paddr)) {
+    panic("pmm_free_contiguous_frames: paddr not page aligned.");
+  }
+
+  size_t pfn = (uintptr_t)paddr / PAGE_SIZE;
+
+  for (size_t i = pfn; i < pfn + count; i++) {
+    bitmap[i / 8] &= ~(1 << (i % 8));
+  }
+}

@@ -67,7 +67,12 @@ size_t arch_get_memory_map(struct phys_region* regions) {
 }
 
 extern bool cpu_has_1g_pages;
+void gdt_init();
+void idt_init();
+
 void init() {
   enable_no_execute();
   cpu_has_1g_pages = check_1gib_pages_support();
+  gdt_init();
+  idt_init();
 }

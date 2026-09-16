@@ -2,12 +2,12 @@ ARCH ?= x86_64
 CC = $(ARCH)-elf-gcc
 ASM = nasm
 
-CFLAGS = -ffreestanding -O3 -Wall -Wextra -Iinclude -Iarch/$(ARCH)/include -mcmodel=kernel -mno-red-zone -mno-sse -mno-sse2 -mno-mmx -mgeneral-regs-only
+CFLAGS = -ffreestanding -O1 -Wall -Wextra -Iinclude -Iarch/$(ARCH)/include -mcmodel=kernel -mno-red-zone -mno-sse -mno-sse2 -mno-mmx -mgeneral-regs-only
 ASMFLAGS = -f elf64
 
 CORE_SRC := $(wildcard kernel/*.c mm/*.c fs/*.c fs/ext2/*.c drivers/*/*.c klibc/*.c)
-ARCH_C_SRC := $(wildcard arch/$(ARCH)/kernel/*.c arch/$(ARCH)/mm/*.c)
-ARCH_S_SRC := $(wildcard arch/$(ARCH)/kernel/*.asm)
+ARCH_C_SRC := $(wildcard arch/$(ARCH)/kernel/*.c arch/$(ARCH)/mm/*.c arch/$(ARCH)/idt/*.c )
+ARCH_S_SRC := $(wildcard arch/$(ARCH)/kernel/*.asm arch/$(ARCH)/idt/*.asm)
 
 ALL_C_SRC := $(CORE_SRC) $(ARCH_C_SRC)
 ALL_S_SRC := $(ARCH_S_SRC)

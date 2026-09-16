@@ -1,5 +1,6 @@
 #include <drivers/vga.h>
 #include <mm.h>
+#include <string.h>
 
 void panic(char* s) {
   if (s) {
@@ -52,6 +53,16 @@ void kmain() {
   kfree(ptr4);
   kfree(ptr2);
   kfree(ptr3);
+
+  char* buf = (char*)kmalloc(5000);
+  strcpy(buf, "Hello world my name is Atheer.\n");
+  vga_print(buf);
+  
+  kfree(buf);
+
+
+  char *p = 0;
+  *p = 10;
 
   while (1) {}
 }

@@ -51,6 +51,7 @@ void* pmm_alloc_contiguous_frames(size_t count);
 void pmm_free_contiguous_frames(void* paddr, size_t count);
 
 void* kmalloc(size_t size);
+void* kzalloc(size_t size);
 void kfree(void* ptr);
 void* alloc_page();
 void* alloc_pages(size_t count);

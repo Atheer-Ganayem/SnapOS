@@ -6,7 +6,7 @@ CFLAGS = -ffreestanding -O1 -Wall -Wextra -Iinclude -Iarch/$(ARCH)/include -mcmo
 ASMFLAGS = -f elf64
 
 CORE_SRC := $(wildcard kernel/*.c mm/*.c fs/*.c fs/ext2/*.c drivers/*/*.c klibc/*.c)
-ARCH_C_SRC := $(wildcard arch/$(ARCH)/*.c arch/$(ARCH)/kernel/*.c arch/$(ARCH)/mm/*.c arch/$(ARCH)/idt/*.c arch/$(ARCH)/apic/*.c)
+ARCH_C_SRC := $(wildcard arch/$(ARCH)/*.c arch/$(ARCH)/kernel/*.c arch/$(ARCH)/mm/*.c arch/$(ARCH)/idt/*.c arch/$(ARCH)/apic/*.c arch/$(ARCH)/acpi/*.c)
 ARCH_S_SRC := $(wildcard arch/$(ARCH)/kernel/*.asm arch/$(ARCH)/idt/*.asm)
 
 ALL_C_SRC := $(CORE_SRC) $(ARCH_C_SRC)

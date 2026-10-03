@@ -4,23 +4,13 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define MAX_IRQ 15
+#include "../acpi/acpi.h"
 
+#define MAX_IRQ 15
 #define PIC1_OFFSET 0x20
 #define PIC2_OFFSET (PIC1_OFFSET + 8)
 
-#define RSDP_SIGNATURE    "RSD PTR "
-#define RSDP_REGION_START 0xE0000
-#define RSDP_REGION_END   0xFFFFF
-#define RSDP_SIZE    20
-#define XSDP_SIZE    (RSDP_SIZE + 16)
-
-#define RSDT_SIGNATURE "RSDT"
-#define XSDT_SIGNATURE "XSDT"
-#define MADT_SIGNATURE "APIC"
-
 #define FIRST_MADT_RECORD_OFFSET 0x2C
-
 #define MADT_REC_TYPE_0_ENABLED 0x01
 
 struct lapic {
@@ -113,40 +103,6 @@ struct ioapic {
   void* addr;
   uint32_t gsi_base;
 };
-
-struct rsdp {
-  char signature[8];
-  uint8_t checksum;
-  char OEMID[6];
-  uint8_t revision;
-  uint32_t rsdt_addr;
-} __attribute__((packed));
-
-struct xsdp {
-  char signature[8];
-  uint8_t checksum;
-  char OEMID[6];
-  uint8_t revision;
-  uint32_t rsdt_addr;
-
-  uint32_t length;
-  uint64_t xsdt_addr;
-  uint8_t extended_checksum;
-  uint8_t rsv[3];
-} __attribute__((packed));
-
-struct acpi_header {
-  char signature[4];
-  uint32_t length;
-  uint8_t revision;
-  uint8_t checksum;
-  char OEMID[6];
-  char OEM_table_id[8];
-  uint32_t OEM_revision;
-  uint32_t creator_id;
-  uint32_t creator_revision;
-} __attribute__((packed));
-
 
 struct madt {
   struct acpi_header header;

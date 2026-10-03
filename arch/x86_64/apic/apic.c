@@ -12,92 +12,6 @@ struct lapic* lapic = NULL;
 struct ioapic ioapic = {.addr = NULL};
 struct irq_override irq_overrides[MAX_IRQ + 1] = {}; 
 
-static struct rsdp* find_rsdp() {
-  char* ptr = (char*)ioremap(RSDP_REGION_START, RSDP_REGION_END - RSDP_REGION_START);
-
-  for (; ptr < (char*)PHYS_TO_VIRT(RSDP_REGION_END); ptr += 16) {
-    if (memcmp(ptr, RSDP_SIGNATURE, sizeof(RSDP_SIGNATURE)-1) == 0) {
-      uint8_t* byte = (uint8_t*)ptr;
-      uint8_t sum = 0;
-      for (size_t i = 0; i < RSDP_SIZE; i++) {
-        sum += byte[i];
-      }
-
-      // checksum should equal to zero
-      if (sum != 0) {
-        continue;
-      }
-
-      struct rsdp* rsdp = (struct rsdp*)ptr;
-      // if its an XSDP we need to check the extended checksum.
-      if (rsdp->revision == 2) {
-        sum = 0;
-        for (size_t i = 0; i < XSDP_SIZE; i++) {
-          sum += byte[i];
-        }
-      }
-
-      if (sum == 0) {
-        return rsdp;
-      }
-    }
-  }
-
-  return NULL;
-}
-
-static bool validate_sdt_header(struct acpi_header* header, bool xsdt) {
-  if (memcmp(header->signature, xsdt ? XSDT_SIGNATURE : RSDT_SIGNATURE, sizeof(header->signature)) != 0) {
-    return false;
-  }
-
-  uint8_t sum = 0;
-  uint8_t* byte = (uint8_t*)header;
-  for (uint32_t i = 0; i < header->length; i++) {
-    sum += byte[i];
-  }
-
-  return sum == 0;
-}
-
-static void* get_madt(struct acpi_header* header, bool xsdt) {
-  if (!validate_sdt_header(header, xsdt)) {
-    return NULL;
-  }
-
-  ioremap((uint64_t)VIRT_TO_PHYS(header), header->length);
-
-  uint8_t entry_size = xsdt ? sizeof(uint64_t) : sizeof(uint32_t);
-  void* ptr = (void*)header + sizeof(struct acpi_header);
-  uint32_t n = (header->length - sizeof(struct acpi_header)) / entry_size; 
-
-  for (; n > 0; n--, ptr += entry_size) {
-    uint64_t entry_phys_addr;
-    if (xsdt) {
-      entry_phys_addr = *(uint64_t*)ptr;
-    } else {
-      entry_phys_addr = *(uint32_t*)ptr;
-    }
-
-    struct acpi_header* entry = (struct acpi_header*)ioremap(entry_phys_addr, sizeof(struct acpi_header));
-    if (memcmp(entry->signature, MADT_SIGNATURE, sizeof(entry->signature)) != 0) {
-      continue;
-    }
-
-    ioremap(entry_phys_addr, entry->length);
-
-    uint8_t sum = 0;
-    for (uint32_t i = 0; i < entry->length; i++) 
-      sum += ((uint8_t*)entry)[i];
-
-    if (sum == 0) {
-      return (struct madt*)entry;
-    }
-  }
-
-  return NULL;
-}
-
 static size_t count_cores(struct madt* madt) {
   void* ptr = ((void*)madt) + FIRST_MADT_RECORD_OFFSET;
   struct madt_record_header* header = (struct madt_record_header*)ptr;
@@ -190,9 +104,11 @@ static void madt_parse_record_type_2(struct madt_record_header* header) {
 };
 
 static void madt_parse_record_type_3(struct madt_record_header* header) {
+  (void)header;
   // skip for now
 };
 static void madt_parse_record_type_4(struct madt_record_header* header) {
+  (void)header;
   // skip for now
 };
 
@@ -250,20 +166,14 @@ static void madt_parse_recoreds(struct madt* madt) {
 
 void init_apic() {
   remap_pic(PIC1_OFFSET, PIC2_OFFSET);
+  disable_pic();
 
-  struct rsdp* rsdp = find_rsdp();
+  struct rsdp* rsdp = get_rsdp();
   if (!rsdp) {
     panic("init_apic: couldn't find RSDP.");
   }
 
-  struct madt* madt;
-  if (rsdp->revision == 2) {
-    struct xsdp* xsdp = (struct xsdp*)rsdp;
-    madt = get_madt((struct acpi_header*)ioremap(xsdp->xsdt_addr, sizeof(struct acpi_header)), true);
-  } else {
-    madt = get_madt((struct acpi_header*)(uintptr_t)ioremap(rsdp->rsdt_addr, sizeof(struct acpi_header)), false);
-  }
-
+  struct madt* madt = (struct madt*)sdt_find(rsdp, MADT_SIGNATURE);
   if (!madt) {
     panic("init_apic: couldn't find MADT.");
   }
@@ -296,7 +206,7 @@ void init_apic() {
   
   int cc = 0, ac = 0;
   
-  for (int i = 0; i < cores_count; i++) {
+  for (size_t i = 0; i < cores_count; i++) {
     vga_print("core "); vga_putchar('0' + cores[i].logical_id); vga_print(" apic id "); vga_putchar('0' + cores[i].apic_id);
     vga_putchar('\n');
     cc++;
@@ -304,9 +214,6 @@ void init_apic() {
     
   }
   
-  disable_pic();
-
-
 vga_putchar('\n');
 vga_putchar('0' + cc);
 vga_putchar('\n');

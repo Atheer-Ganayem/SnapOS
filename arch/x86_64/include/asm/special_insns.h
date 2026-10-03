@@ -2,6 +2,7 @@
 #define SPECIAL_INSNS_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 extern uint64_t read_cr3();
 extern void write_cr3(uint64_t val);
@@ -17,5 +18,15 @@ static inline uint64_t switch_cr3(uint64_t new_val) {
 extern void flush_tlb_single(void* vaddr);
 
 extern void enable_no_execute();
+
+extern void outb(uint16_t port, uint8_t val); 
+extern uint8_t inb(uint16_t port);
+static inline void io_wait() {
+  outb(0x80, 0);
+}
+
+
+extern void cli();
+extern void sti();
 
 #endif

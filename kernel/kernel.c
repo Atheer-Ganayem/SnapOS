@@ -54,15 +54,9 @@ void kmain() {
   kfree(ptr2);
   kfree(ptr3);
 
-  char* buf = (char*)kmalloc(5000);
-  strcpy(buf, "Hello world my name is Atheer.\n");
-  vga_print(buf);
-  
-  kfree(buf);
+  vga_print("Last print\n");
 
-
-  char *p = 0;
-  *p = 10;
+  setup_stage2();
 
   while (1) {}
 }

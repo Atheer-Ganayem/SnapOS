@@ -5,6 +5,9 @@
 
 void* memset(void* s, int c, size_t n);
 void* memcpy(void* restrict dest, void* restrict src, size_t count);
+int memcmp(const void* s1, const void* s2, size_t n);
+
 char* strcpy(char* restrict dest, const char* restrict src);
+int strncmp(const char* s1, const char* s2, size_t n);
 
 #endif

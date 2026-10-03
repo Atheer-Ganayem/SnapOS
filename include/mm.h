@@ -12,8 +12,8 @@ extern char _kernel_end;
 #define KERNEL_START_VIRT_ADDR  0xFFFFFFFF81000000 // 16MiB
 #define MIN_USABLE_PADDR _MIN_USABLE_PADDR
 #define ID_VIRT_REGION_START    0xffff888000000000
-#define PHYS_TO_VIRT(x) ((void*)(((unsigned long long)x) + ID_VIRT_REGION_START))
-#define VIRT_TO_PHYS(x) ((void*)(((unsigned long long)x) - ID_VIRT_REGION_START))
+#define PHYS_TO_VIRT(x) ((void*)(((uintptr_t)x) + ID_VIRT_REGION_START))
+#define VIRT_TO_PHYS(x) ((void*)(((uintptr_t)x) - ID_VIRT_REGION_START))
 
 typedef void* (*pmm_alloc_frame_func_t)(void);
 

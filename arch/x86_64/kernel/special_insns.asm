@@ -8,6 +8,11 @@ global flush_tlb_single
 global check_1gib_pages_support
 global enable_no_execute
 global load_gdtr
+global outb
+global inb
+global sti
+global cli
+global get_current_apic_id
 
 read_cr3:
   mov rax, cr3
@@ -59,4 +64,26 @@ load_gdtr:
   push rax
   retfq
 .done:
+  ret
+
+
+outb:
+  mov dx, di
+  mov al, sil
+
+  out dx, al
+  ret
+
+inb:
+  mov dx, di
+  xor rax, rax
+  in al, dx
+  ret
+
+cli:
+  cli
+  ret
+
+sti:
+  sti
   ret

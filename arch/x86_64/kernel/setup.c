@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <asm/setup.h>
 #include <asm/special_insns.h>
+#include "../apic/apic.h"
 
 #define MEMORY_MAP_ADDR       0xFFFFFFFF80000510ULL
 #define MEMORY_MAP_SIZE_ADDR  0xFFFFFFFF80000500ULL
@@ -75,4 +76,9 @@ void init() {
   cpu_has_1g_pages = check_1gib_pages_support();
   gdt_init();
   idt_init();
+}
+
+void setup_stage2() {
+  init_apic();
+  sti();
 }

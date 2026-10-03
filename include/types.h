@@ -1,6 +1,9 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+#define likely(x) __builtin_expect(!!(x), 1)
+#define unlikely(x) __builtin_expect(!!(x), 0)
+
 typedef enum {
   KSTATUS_SUCCESS           = 0,
   KSTATUS_ERR_NO_MEMORY     = 1,

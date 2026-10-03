@@ -2,23 +2,13 @@
 #include <stdint.h>
 #include <string.h>
 #include <drivers/vga.h>
+#include "idt.h"
 
 #define IDT_COUNT 256
 #define EXCEPTION_COUNT 32
 #define KERNEL_CS 0x08
 
-struct interrupt_frame {
-  uint64_t r15, r14, r13, r12, r11, r10, r9, r8;
-  uint64_t ebp, rdi, rsi, rdx, rcx, rbx, rax;
 
-  uint64_t error_code;
-
-  uint64_t rip;
-  uint64_t cs;
-  uint64_t rflags;
-  uint64_t rsp;
-  uint64_t ss;
-} __attribute__((packed));
 
 struct idtr {
   uint16_t size;
@@ -40,7 +30,8 @@ struct interrupt_descriptor idt[IDT_COUNT];
 typedef void (*interrupt_handler)(struct interrupt_frame* frame, uint64_t int_no, uint64_t err_code);
 
 void dummy_interrupt_handler(struct interrupt_frame* frame, uint64_t int_no, uint64_t err_code) {
-  vga_print_color("dummy_interrupt_handler", VGA_COLOR_GREEN);
+  (void)frame; (void)int_no; (void)err_code;
+  vga_print_color("dummy_interrupt_handler\n", VGA_COLOR_GREEN);
   while(1) {
     // just loop for now
   }
@@ -61,14 +52,18 @@ void register_intrerrupt(uint16_t int_no, interrupt_handler handler) {
 extern void int0();
 extern void int13();
 extern void int14();
+extern void int32();
+extern void int33();
 void register_eceptions() {
   for (size_t i = 0; i < EXCEPTION_COUNT; i++) {
     register_intrerrupt(i, dummy_interrupt_handler);
   }
 
   register_intrerrupt(0, int0);
-  register_intrerrupt(0, int13);
+  register_intrerrupt(13, int13);
   register_intrerrupt(14, int14);
+  register_intrerrupt(32, int32);
+  register_intrerrupt(33, int33);
 }
 
 extern void load_idtr(struct idtr* idtr);

@@ -108,3 +108,5 @@ load_idtr:
 int_no_err 0, divide_by_zero_handler
 int_err 13, general_protection_handler
 int_err 14, page_fault_handler
+int_no_err 32, timer_irq
+int_no_err 33, kyb_irq

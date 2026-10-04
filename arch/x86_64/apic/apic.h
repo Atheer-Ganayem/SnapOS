@@ -7,11 +7,9 @@
 #include "../acpi/acpi.h"
 
 #define MAX_IRQ 15
+#define IRQ_COUNT (MAX_IRQ + 1)
 #define PIC1_OFFSET 0x20
 #define PIC2_OFFSET (PIC1_OFFSET + 8)
-
-#define FIRST_MADT_RECORD_OFFSET 0x2C
-#define MADT_REC_TYPE_0_ENABLED 0x01
 
 struct lapic {
   uint32_t rsv0[4 * 2];
@@ -98,85 +96,19 @@ struct lapic {
   uint32_t rsv4[4];
 };
 
-
 struct ioapic {
   void* addr;
   uint32_t gsi_base;
 };
-
-struct madt {
-  struct acpi_header header;
-  uint32_t lapic_phys_addr;
-  uint32_t flags;
-} __attribute__((packed));
-
-struct madt_record_header {
-  uint8_t type;
-  uint8_t length;
-}__attribute__((packed));
-
-struct madt_record_type_0 {
-  struct madt_record_header header;
-  uint8_t processor_id;
-  uint8_t apic_id;
-  uint32_t flags;
-} __attribute__((packed));
-
-struct madt_record_type_1 {
-  struct madt_record_header header;
-  uint8_t ioapic_id;
-  uint8_t rsv;
-  uint32_t ioapic_phys_addr;
-  uint32_t gsi_base;
-} __attribute__((packed));
-
-struct madt_record_type_2 {
-  struct madt_record_header header;
-  uint8_t bus_src;
-  uint8_t irq_src;
-  uint32_t gsi;
-  uint16_t flags;
-} __attribute__((packed));
-
-struct madt_record_type_3 {
-  struct madt_record_header header;
-  uint8_t nmi_src;
-  uint8_t rsv;
-  uint16_t flags;
-  uint32_t gsi;
-} __attribute__((packed));
-
-struct madt_record_type_4 {
-  struct madt_record_header header;
-  uint8_t processor_id;
-  uint16_t flags;
-  uint8_t lint;
-} __attribute__((packed));
-
-struct madt_record_type_5 {
-  struct madt_record_header header;
-  uint16_t rsv;
-  uint64_t lapic_phys_addr;
-} __attribute__((packed));
-
-
-// not gonna be supported in SnapOS for now
-// struct madt_record_type_9 {
-//   struct madt_record_header header;
-//   uint16_t rsv;
-//   uint32_t lapic_id;
-//   uint32_t flags;
-//   uint32_t acpi_id;
-// } __attribute__((packed));
 
 struct irq_override {
   uint32_t gsi;
   uint32_t flags;
 };
 
-extern struct lapic* lapic;;
-extern struct ioapic ioapics;
-extern struct irq_override irq_overrides[MAX_IRQ + 1]; // the first IRQ is 0 so we need MAX_IRQ + 1
+extern struct lapic* lapic;
+extern struct ioapic ioapic;
+extern struct irq_override irq_overrides[IRQ_COUNT];
 
 void init_apic();
 

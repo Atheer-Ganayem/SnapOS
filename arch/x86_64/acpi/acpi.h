@@ -12,7 +12,6 @@
 
 #define RSDT_SIGNATURE "RSDT"
 #define XSDT_SIGNATURE "XSDT"
-#define MADT_SIGNATURE "APIC"
 
 struct rsdp {
   char signature[8];

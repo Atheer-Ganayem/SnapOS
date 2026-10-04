@@ -12,11 +12,10 @@ struct cpu_core {
   bool is_awake; 
 };
 
-extern struct cpu_core* cores;
-// extern struct cpu_core cores[];
-extern size_t cores_count;
+void cpu_table_init(size_t count);
+void cpu_table_set(size_t idx, struct cpu_core core);
+struct cpu_core cpu_table_get(size_t idx);
+size_t cpu_table_get_count();
 
-void cores_array_init(size_t count);
-void cores_array_update(size_t idx, struct cpu_core core);
 
 #endif

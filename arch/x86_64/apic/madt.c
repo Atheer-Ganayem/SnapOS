@@ -1,5 +1,5 @@
 #include "madt.h"
-#include <asm/cpu.h>
+#include <asm/cores.h>
 #include "apic.h"
 #include <mm.h>
 #include <types.h>
@@ -55,7 +55,7 @@ static void madt_parse_record_type_0(struct madt_record_header* header) {
   core.apic_id = rec->apic_id;
   core.is_awake = false;
 
-  cpu_table_set(index++, core);
+  cores_table_set(index++, core);
 }
 
 

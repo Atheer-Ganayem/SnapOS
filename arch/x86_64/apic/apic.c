@@ -4,7 +4,7 @@
 #include <string.h>
 #include <mm.h>
 #include <types.h>
-#include <asm/cpu.h>
+#include <asm/cores.h>
 
 #include <drivers/vga.h>
 
@@ -22,11 +22,11 @@ static void irq_overrides_init() {
 static uint8_t update_awake_cores() {
   uint8_t awake_cores = 0;
 
-  for (size_t i = 0; i < cpu_table_get_count(); i++) {
-    struct cpu_core core = cpu_table_get(i);
+  for (size_t i = 0; i < cores_table_get_count(); i++) {
+    struct cpu_core core = cores_table_get(i);
     if (core.apic_id == get_current_apic_id()) {
       core.is_awake = true;
-      cpu_table_set(i, core);
+      cores_table_set(i, core);
       awake_cores++;
     }
   }
@@ -55,7 +55,7 @@ void init_apic() {
   if (count == 0) {
     panic("cores_array_init: cores count is zero.");
   }
-  cpu_table_init(count);
+  cores_table_init(count);
 
   lapic = (struct lapic*)ioremap(madt->lapic_phys_addr, sizeof(struct lapic));
   

@@ -34,6 +34,45 @@ static uint8_t update_awake_cores() {
   return awake_cores;
 }
 
+static uint32_t ioapic_read(uint32_t reg) {
+  volatile uint32_t* regs = (uint32_t*)ioapic.addr;
+  regs[0] = reg;
+  return regs[4];
+}
+
+static void ioapic_write(uint32_t reg, uint32_t val) {
+  volatile uint32_t* regs = (uint32_t*)ioapic.addr;
+  regs[0] = reg;
+  regs[4] = val;
+}
+
+static void ioapic_write_entry(uint32_t pin, union ioapic_redirection_entry* entry) {
+  ioapic_write(IOAPIC_REDIRECTION_TABLE_START_OFFSET + pin*2 + 1, entry->upper_dword);
+  ioapic_write(IOAPIC_REDIRECTION_TABLE_START_OFFSET + pin*2, entry->lower_dword);
+}
+
+static void enable_lapic() {
+  lapic->sivr = 0x100 | 0xFF;
+}
+
+void apic_eoi() {
+  lapic->eoi = 0x00;
+}
+
+static uint8_t ioapic_max_redirection_entries() {
+  uint32_t ver = *((uint32_t*)(ioapic.addr + IOAPIC_VERSION_OFFSET));
+  return (uint8_t)(ver >> 16);
+}
+
+void apic_route_irq(uint8_t irq, uint8_t vector) {
+  union ioapic_redirection_entry kyb_entry = {0};
+  kyb_entry.int_vector = vector;
+  kyb_entry.dest = 0;
+  kyb_entry.mask = 0;
+
+  ioapic_write_entry(irq_overrides[irq].gsi, &kyb_entry);
+}
+
 void init_apic() {
   remap_pic(PIC1_OFFSET, PIC2_OFFSET);
   disable_pic();
@@ -65,4 +104,8 @@ void init_apic() {
   if (awake_cores_count != 1) {
     panic("init_apic: found more or less than 1 awake core.");
   }
+
+  ioremap(VIRT_TO_PHYS(ioapic.addr), IOAPIC_SIZE);
+
+  enable_lapic();
 }

@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <drivers/vga.h>
-#include "idt.h"
+#include <asm/idt.h>
 
 #define IDT_COUNT 256
 #define EXCEPTION_COUNT 32

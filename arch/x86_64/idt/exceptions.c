@@ -3,7 +3,7 @@
 #include <drivers/vga.h>
 #include <types.h>
 
-#include "idt.h"
+#include <asm/idt.h>
 
 void divide_by_zero_handler(struct interrupt_frame* frame, uint64_t int_no, uint64_t err_code) {
   (void)frame; (void)int_no; (void)err_code;

@@ -11,6 +11,14 @@
 #define PIC1_OFFSET 0x20
 #define PIC2_OFFSET (PIC1_OFFSET + 8)
 
+#define IOAPIC_SIZE 8
+
+#define IOAPIC_ID_OFFSET                      0x00
+#define IOAPIC_VERSION_OFFSET                 0x01
+#define IOAPIC_REDIRECTION_TABLE_START_OFFSET 0x10
+
+#define IOAPIC_MAX_REDIRECTION_ENTRIES_SHIFT 16
+
 struct lapic {
   uint32_t rsv0[4 * 2];
 
@@ -96,6 +104,21 @@ struct lapic {
   uint32_t rsv4[4];
 };
 
+union ioapic_redirection_entry {
+  struct {
+    uint32_t lower_dword;
+    uint32_t upper_dword;
+  };
+  
+  struct { 
+  uint8_t int_vector; // interrupt vector
+  uint8_t flags;
+  uint8_t mask;
+  uint32_t rsv;
+  uint8_t dest;
+  };
+} __attribute__((packed));
+
 struct ioapic {
   void* addr;
   uint32_t gsi_base;
@@ -111,6 +134,8 @@ extern struct ioapic ioapic;
 extern struct irq_override irq_overrides[IRQ_COUNT];
 
 void init_apic();
+void apic_eoi();
+void apic_route_irq(uint8_t irq, uint8_t vector);
 
 static inline uint32_t get_current_apic_id() {
   return lapic->id >> 24;

@@ -3,6 +3,7 @@
 #include <asm/setup.h>
 #include <asm/special_insns.h>
 #include "../apic/apic.h"
+#include "../drivers/ps2/ps2.h"
 
 #define MEMORY_MAP_ADDR       0xFFFFFFFF80000510ULL
 #define MEMORY_MAP_SIZE_ADDR  0xFFFFFFFF80000500ULL
@@ -80,5 +81,7 @@ void init() {
 
 void setup_stage2() {
   init_apic();
+
+  ps2_init();
   sti();
 }

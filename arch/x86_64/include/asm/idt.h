@@ -3,6 +3,11 @@
 
 #include <stdint.h>
 
+#define IRQ_PS2 1
+
+#define IDT_TIMER     32
+#define IDT_KEYBOARD  33
+
 struct interrupt_frame {
   uint64_t r15, r14, r13, r12, r11, r10, r9, r8;
   uint64_t ebp, rdi, rsi, rdx, rcx, rbx, rax;
@@ -15,5 +20,7 @@ struct interrupt_frame {
   uint64_t rsp;
   uint64_t ss;
 } __attribute__((packed));
+
+void irq_route(uint8_t irq, uint8_t vector);
 
 #endif

@@ -59,7 +59,7 @@ static bool validate_sdt_header(struct acpi_header* header, bool xsdt) {
 
 void* sdt_find(struct rsdp* rsdp, char* singature) {
   bool xsdt = rsdp->revision == 2;
-  void* sdt = xsdt ? (void*)((uintptr_t)rsdp->rsdt_addr) : (void*)((uintptr_t)((struct xsdp*)rsdp)->rsdt_addr);
+  void* sdt = !xsdt ? (void*)((uintptr_t)rsdp->rsdt_addr) : (void*)((uintptr_t)((struct xsdp*)rsdp)->xsdt_addr);
   sdt = ioremap((uint64_t)sdt, sizeof(struct acpi_header));
 
   struct acpi_header* sdt_header = (struct acpi_header*)sdt;

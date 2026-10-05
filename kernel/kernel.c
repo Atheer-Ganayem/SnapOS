@@ -1,6 +1,8 @@
 #include <drivers/vga.h>
 #include <mm.h>
 #include <string.h>
+#include <drivers/ahci.h>
+#include <types.h>
 
 void panic(char* s) {
   if (s) {
@@ -57,6 +59,11 @@ void kmain() {
   vga_print("Last print\n");
 
   setup_stage2();
+
+  kstatus_t status = achi_init();
+  if (status != KSTATUS_SUCCESS) {
+    panic("failed to init ACHI.\n");
+  }
 
   while (1) {}
 }

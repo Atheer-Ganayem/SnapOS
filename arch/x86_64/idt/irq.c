@@ -10,5 +10,6 @@ void irq_route(uint8_t irq, uint8_t vector) {
 
 void timer_irq(struct interrupt_frame* frame, uint64_t int_no, uint64_t err_code) {
   (void)frame; (void)int_no; (void)err_code;
+  // vga_print("timer ");
   apic_eoi();
 }

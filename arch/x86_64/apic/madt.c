@@ -10,7 +10,7 @@ size_t madt_count_cores(struct madt* madt) {
   void* madt_end = (void*)madt + madt->header.length;
   size_t count = 0;
 
-  for (; ptr + header->length <= madt_end; ptr += header->length, header = (struct madt_record_header*)ptr) {
+  for (; ptr + header->length < madt_end; ptr += header->length, header = (struct madt_record_header*)ptr) {
     if (header->length < sizeof(struct madt_record_header)) {
       panic("cores_array_init: invalid record length (rec->length < sizeof(struct madt_record_header).");
     }
@@ -64,11 +64,11 @@ static void madt_parse_record_type_1(struct madt_record_header* header) {
     return;
   }
 
-  if (ioapic.addr) {
-    panic("madt_parse_record_type_1: multiple I/O APIC's arent supported.");
-  }
-
   struct madt_record_ioapic* rec = (struct madt_record_ioapic*)header;
+
+  if (rec->gsi_base != 0) {
+    return;
+  }
 
   ioapic.addr = PHYS_TO_VIRT(rec->ioapic_phys_addr);
   ioapic.gsi_base = rec->gsi_base;
@@ -120,7 +120,7 @@ void madt_parse_recoreds(struct madt* madt) {
   struct madt_record_header* header = (struct madt_record_header*)ptr;
   void* madt_end = (void*)madt + madt->header.length;
 
-  for (; ptr + header->length <= madt_end; ptr += header->length, header = (struct madt_record_header*)ptr) {
+  for (; ptr + header->length < madt_end; ptr += header->length, header = (struct madt_record_header*)ptr) {
     switch (header->type)
     {
     case 0:

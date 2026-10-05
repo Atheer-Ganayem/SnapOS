@@ -40,6 +40,11 @@ static uint32_t ioapic_read(uint32_t reg) {
   return regs[4];
 }
 
+static uint8_t ioapic_max_redirection_entries() {
+  uint32_t ver = ioapic_read(IOAPIC_VERSION_OFFSET);
+  return (uint8_t)(ver >> 16);
+}
+
 static void ioapic_write(uint32_t reg, uint32_t val) {
   volatile uint32_t* regs = (uint32_t*)ioapic.addr;
   regs[0] = reg;
@@ -47,9 +52,13 @@ static void ioapic_write(uint32_t reg, uint32_t val) {
 }
 
 static void ioapic_write_entry(uint32_t pin, union ioapic_redirection_entry* entry) {
+  if (unlikely(pin < ioapic.gsi_base || pin > ioapic.gsi_base + ioapic_max_redirection_entries())) {
+    panic("ioapic_write_entry: pin/gsi not in range.");
+  }
   ioapic_write(IOAPIC_REDIRECTION_TABLE_START_OFFSET + pin*2 + 1, entry->upper_dword);
   ioapic_write(IOAPIC_REDIRECTION_TABLE_START_OFFSET + pin*2, entry->lower_dword);
 }
+
 
 static void enable_lapic() {
   lapic->sivr = 0x100 | 0xFF;
@@ -59,11 +68,6 @@ void apic_eoi() {
   lapic->eoi = 0x00;
 }
 
-static uint8_t ioapic_max_redirection_entries() {
-  uint32_t ver = *((uint32_t*)(ioapic.addr + IOAPIC_VERSION_OFFSET));
-  return (uint8_t)(ver >> 16);
-}
-
 void apic_route_irq(uint8_t irq, uint8_t vector) {
   union ioapic_redirection_entry kyb_entry = {0};
   kyb_entry.int_vector = vector;
@@ -71,6 +75,14 @@ void apic_route_irq(uint8_t irq, uint8_t vector) {
   kyb_entry.mask = 0;
 
   ioapic_write_entry(irq_overrides[irq].gsi, &kyb_entry);
+}
+
+void lapic_timer_init(uint8_t vector) {
+  lapic->div_config_reg = 0x03;
+
+  lapic->lvt_timer_reg = 0x20000 | vector;
+
+  lapic->init_count_reg = 10000000; 
 }
 
 void init_apic() {
@@ -92,20 +104,25 @@ void init_apic() {
   // init cores array
   size_t count = madt_count_cores(madt);
   if (count == 0) {
-    panic("cores_array_init: cores count is zero.");
+    panic("madt_count_cores: cores count is zero.");
   }
   cores_table_init(count);
 
   lapic = (struct lapic*)ioremap(madt->lapic_phys_addr, sizeof(struct lapic));
   
   madt_parse_recoreds(madt);
+  if (!ioapic.addr) {
+    panic("init_apic: couldn't find I/O APIC.");
+  }
 
   uint8_t awake_cores_count = update_awake_cores();
   if (awake_cores_count != 1) {
     panic("init_apic: found more or less than 1 awake core.");
   }
 
-  ioremap(VIRT_TO_PHYS(ioapic.addr), IOAPIC_SIZE);
+  ioremap(VIRT_TO_PHYS((uint64_t)ioapic.addr), IOAPIC_SIZE);
 
   enable_lapic();
+
+  lapic_timer_init(32);
 }

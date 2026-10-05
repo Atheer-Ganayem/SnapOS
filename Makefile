@@ -51,7 +51,10 @@ build_bootloader:
 	make -C arch/$(ARCH)/boot
 
 qemu:
-	qemu-system-x86_64 -m 2G -drive format=raw,file=snapos.img -serial stdio -d int -no-reboot -smp 4
+	qemu-system-x86_64 -m 2G -serial stdio -d int -no-reboot -smp 4 \
+  -drive id=os_disk,format=raw,file=snapos.img,if=none \
+  -device ahci,id=ahci_ctrl \
+  -device ide-hd,drive=os_disk,bus=ahci_ctrl.0
 
 qemu_gdb:
 	qemu-system-x86_64 -m 512M -drive format=raw,file=snapos.img -serial stdio -d int -no-reboot -s -S

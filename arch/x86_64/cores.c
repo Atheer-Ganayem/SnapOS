@@ -7,7 +7,7 @@ static size_t cores_count = 0;
 void cores_table_init(size_t count) {
   cores = (struct cpu_core*)kzalloc(sizeof(struct cpu_core) * count);
   if (!cores) {
-    panic("cores_array_init: kmalloc failed");
+    panic("cores_table_init: kmalloc failed");
   }
 
   cores_count = count;

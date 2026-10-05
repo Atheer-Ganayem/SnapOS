@@ -10,6 +10,8 @@ global enable_no_execute
 global load_gdtr
 global outb
 global inb
+global outl
+global inl
 global sti
 global cli
 global get_current_apic_id
@@ -78,6 +80,19 @@ inb:
   mov dx, di
   xor rax, rax
   in al, dx
+  ret
+
+outl:
+  mov dx, di
+  mov eax, esi
+
+  out dx, eax
+  ret
+
+inl:
+  mov dx, di
+  xor rax, rax
+  in eax, dx
   ret
 
 cli:

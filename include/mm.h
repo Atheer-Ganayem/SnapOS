@@ -34,6 +34,11 @@ struct phys_region {
   phys_region_type_t type;
 };
 
+struct phys_iovec {
+  uint64_t addr;
+  uint64_t length;
+};
+
 kstatus_t early_pmm_init();
 void* early_pmm_alloc_frame();
 void* early_pmm_alloc_continuous_frames(size_t count);

@@ -120,7 +120,7 @@ void init_apic() {
     panic("init_apic: found more or less than 1 awake core.");
   }
 
-  ioremap(VIRT_TO_PHYS((uint64_t)ioapic.addr), IOAPIC_SIZE);
+  ioremap((uint64_t)VIRT_TO_PHYS(ioapic.addr), IOAPIC_SIZE);
 
   enable_lapic();
 

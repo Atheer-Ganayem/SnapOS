@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <types.h>
+#include <mm.h>
 
 #define AHCI_CLASS 0x01
 #define AHCI_SUB_CLASS 0x06
@@ -12,6 +13,19 @@
 
 #define AHCI_HBA_PORT_DET_PRESENT 3 // DET = device detection
 #define AHCI_HBA_PORT_IPM_ACTIVE  1 // IPM = interface power management
+#define AHCI_HBA_PORT_CMD_ST_BIT 0x01 // st = start
+#define AHCI_HBA_PORT_CMD_FRE_BIT 0x10  // fre = fis receive enable
+#define AHCI_HBA_PORT_CMD_FR_BIT 0x4000 // fr = fis receive running
+#define AHCI_HBA_PORT_CMD_CR_BIT 0x8000 // cr = command list running
+#define AHCI_HBA_PORT_IS_TFES_BIT (1 << 30) // Task File Error Status (TFES)
+#define AHCI_HBA_PORT_TFD_BSY_BIT (1 << 7)
+#define AHCI_HBA_PORT_TFD_DRQ_BIT (1 << 3) // Indicates a data transfer is requested
+
+#define AHCI_COMMAND_LIST_MAX_COUNT 32
+
+#define AHCI_PHYSICAL_REGION_MAX_LENGTH 0x400000
+
+#define AHCI_ATA_CMD_READ_DMA_EXT 0x25
 
 // FIS = Frame Inforamtion Structure
 
@@ -70,6 +84,37 @@ struct fis_d2h {
   uint8_t rsv4[4];
 } __attribute__((packed));
 
+struct fis_pio_setup {
+	uint8_t  fis_type;	// FIS_TYPE_PIO_SETUP
+
+	uint8_t  pmport:4;
+	uint8_t  rsv0:1;
+	uint8_t  d:1;		// Data transfer direction, 1 - device to host
+	uint8_t  i:1;		// Interrupt bit
+	uint8_t  rsv1:1;
+
+	uint8_t  status;
+	uint8_t  error;
+
+	uint8_t  lba0;		// LBA 7:0
+	uint8_t  lba1;		// LBA 15:8
+	uint8_t  lba2;		// LBA 23:16
+	uint8_t  device;
+
+	uint8_t  lba3;		// LBA 31:24
+	uint8_t  lba4;		// LBA 39:32
+	uint8_t  lba5;		// LBA 47:40
+	uint8_t  rsv2;
+
+	uint8_t  countl;		// Count 7:0
+	uint8_t  counth;		// Count 15:8
+	uint8_t  rsv3;
+	uint8_t  e_status;	// New value of status register
+
+	uint16_t tc;		// Transfer count
+	uint8_t  rsv4[2];
+} __attribute__((packed));
+
 struct fis_data {
   uint8_t fis_type; // always FIS_TYPE_DATA
   uint8_t pmport:4;
@@ -77,6 +122,21 @@ struct fis_data {
   uint8_t rsv1[2];
   uint32_t data;
 } __attribute__((packed));
+
+struct fis_dma_setup {
+  uint8_t fis_type; // FIS_TYPE_DMA_SETUP
+  uint8_t pmport:4;
+  uint8_t rsv0:1;
+  uint8_t d:1; // direction, 1: D2H
+  uint8_t i:1; // interrupt bit
+  uint8_t a:1; // auto-active. specifies if dma activate-fis is needed.
+  uint8_t rsv1[2];
+  uint64_t dma_buf_id;
+  uint32_t rsv2;
+  uint32_t dma_buf_offset; // first 2 bits must be zero
+  uint32_t transfet_count;
+  uint32_t rsv3;
+}__attribute__((packed));
 
 struct hba_port {
   uint32_t clb;       // 0x00, Command list base address, 1K-byte aligned
@@ -125,9 +185,65 @@ struct hba_mem {
 
 
 
-kstatus_t achi_init();
+struct hba_fis {
+  struct fis_dma_setup dsfis;
+  uint8_t pad0[4];
 
-void* ahci_read(uint32_t port, uint64_t lba, uint64_t count, void* buf);
+  struct fis_pio_setup psfis;
+  uint8_t pad1[12];
 
+  uint8_t sdbfis[8]; // set devise bit fis
+
+  uint8_t ufis[64];
+
+  uint8_t rsv[0x100 - 0xA0];
+} __attribute__((packed));
+
+struct hba_cmd_header {
+  uint8_t cfl:5; // command fis length in dwords
+  uint8_t a:1; // ATAPI
+  uint8_t w:1; // write, 0: D2H, 1:H2D
+  uint8_t p:1; // prefetchable
+
+  uint8_t r:1; // reset
+  uint8_t b:1; // BIST
+  uint8_t c:1; // clear busy upon R_OK
+  uint8_t rsv0:1;
+  uint8_t pmp:4; // port multiplier port
+
+  uint16_t prdtl; // physical region descriptor length in entries
+
+  volatile uint32_t prdbc; // physical region descriptor byte count transfared
+
+  uint32_t ctba; // command table descriptor base address
+  uint32_t ctbau; // command table descriptor base address uppper 32 bits
+
+  uint32_t rsv1[4];
+} __attribute__((packed));
+
+
+struct hba_prdt_entry {
+  uint32_t dba; // data base address
+  uint32_t dbau; // data base address upper 32 bits
+  uint32_t rsv0;
+  
+  uint32_t dbc:22; // byte count, 4MiB max.
+  uint32_t rsv1:9;
+  uint32_t i:1; // interrupt on completion
+} __attribute__((packed));
+
+struct hba_cmd_table {
+  uint8_t cfis[64]; // command fis
+  uint8_t acmd[16]; // ATAPI command
+  uint8_t rsv[48];
+
+  struct hba_prdt_entry prdt_entry[];
+} __attribute__((packed));
+
+kstatus_t ahci_init();
+
+kstatus_t ahci_read(volatile struct hba_port* port, uint64_t lba, uint64_t count, struct phys_iovec* iovec, uint16_t iovec_count);
+
+volatile struct hba_port* __ahci_get_port(int i);
 
 #endif

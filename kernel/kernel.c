@@ -9,7 +9,9 @@ void panic(char* s) {
     vga_print_color(s, VGA_COLOR_RED);
   }
 
-  while (1) {};
+  while (1) {
+    __asm__ volatile("cli; hlt");
+  };
 }
 
 void kmain() {
@@ -34,36 +36,32 @@ void kmain() {
   }
   vga_print("pmm initialized.\n");
 
-  char* ptr = (char*)kmalloc(1024);
-  if (!ptr) {
-    panic("alloc failed\n");
-  }
-  *ptr = 'A';
-  *(ptr+1) = 'B';
-  *(ptr + 2) = '\n';
-  *(ptr + 3) = 0x00;
-  vga_print(ptr);
-
-  char* ptr2 = (char*)kmalloc(1024);
-  char* ptr3 = (char*)kmalloc(1024);
-  char* ptr4 = (char*)kmalloc(1024);
-  if (!ptr2 || !ptr3 || !ptr4) {
-    panic("alloc failed\n");
-  }
-  
-  kfree(ptr);
-  kfree(ptr4);
-  kfree(ptr2);
-  kfree(ptr3);
-
-  vga_print("Last print\n");
-
   setup_stage2();
 
-  kstatus_t status = achi_init();
+  kstatus_t status = ahci_init();
   if (status != KSTATUS_SUCCESS) {
     panic("failed to init ACHI.\n");
   }
 
-  while (1) {}
+  vga_print("AHCI initialized\n");
+
+  volatile struct hba_port* port = __ahci_get_port(1);
+  if (!port) {
+    panic("NO PORT\n");
+  }
+
+  char* buf = (char*)alloc_page();
+  memset(buf, 0x00, 4096);
+
+  struct phys_iovec vec[] = {{.addr = (uint64_t)VIRT_TO_PHYS(buf), .length = 512}};
+  status = ahci_read(port, 0, 1, vec, 1);
+  if (status) {
+    panic("coudln't read\n");
+  }
+
+  vga_print(buf);
+
+  while (1) {
+    __asm__ volatile("cli; hlt");
+  }
 }

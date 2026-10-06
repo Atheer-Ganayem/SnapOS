@@ -6,3 +6,5 @@ compile_commands.json
 /.vscode/*
 bochsrc.txt
 bochsout.txt
+magic.txt
+test_disk.img

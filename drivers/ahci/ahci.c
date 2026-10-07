@@ -4,11 +4,14 @@
 #include <drivers/pci.h>
 #include <string.h>
 #include <paging.h>
+#include <asm/io.h>
 
 volatile struct hba_mem* hba = NULL;
 
 static inline volatile struct hba_cmd_header* ahci_get_cmd_list(volatile struct hba_port* port) {
-  uint64_t cmd_list_phys = ((uintptr_t)port->clb) | (((uintptr_t)port->clbu) << 32);
+  uintptr_t clbl = (uintptr_t)readl_relaxed(&port->clb);
+  uintptr_t clbu = (uintptr_t)readl_relaxed(&port->clbu);
+  uint64_t cmd_list_phys = clbl | (clbu << 32);
   if (!cmd_list_phys) {
     return NULL;
   }
@@ -17,7 +20,9 @@ static inline volatile struct hba_cmd_header* ahci_get_cmd_list(volatile struct 
 }
 
 static inline volatile struct hba_cmd_table* ahci_get_cmdtbl(volatile struct hba_cmd_header* header) {
-  uint64_t cmdtbl_phys = ((uintptr_t)header->ctba) | (((uintptr_t)header->ctbau) << 32);
+  uintptr_t ctbal = (uintptr_t)readl_relaxed(&header->ctba);
+  uintptr_t ctbau = (uintptr_t)readl_relaxed(&header->ctbau);
+  uint64_t cmdtbl_phys = ctbal | (ctbau << 32);
   if (!cmdtbl_phys) {
     return NULL;
   }
@@ -26,25 +31,29 @@ static inline volatile struct hba_cmd_table* ahci_get_cmdtbl(volatile struct hba
 }
 
 static inline void ahci_set_cmdtbl(volatile struct hba_cmd_header* header, void* phys) {
-  header->ctba = (uint32_t)((uint64_t)phys);
-  header->ctbau = (uint32_t)(((uint64_t)phys) >> 32);
+  writel_relaxed((uint32_t)((uint64_t)phys), &header->ctba);
+  writel_relaxed((uint32_t)(((uint64_t)phys) >> 32), &header->ctbau);
 }
 
 static void stop_port(volatile struct hba_port* port) {
   // disable start bit and FIS receive so the exection engine stops executing commands
   // and stops sending to the FIS receive.
-  port->cmd &= ~AHCI_HBA_PORT_CMD_ST_BIT;
-  port->cmd &= ~AHCI_HBA_PORT_CMD_FRE_BIT;
+  uint32_t cmd = readl_relaxed(&port->cmd);
+  cmd &= ~AHCI_HBA_PORT_CMD_ST_BIT;
+  cmd &= ~AHCI_HBA_PORT_CMD_FRE_BIT;
+  writel(cmd, &port->cmd);
 
   // wait if there's something is already being written/executing
-  while (port->cmd & AHCI_HBA_PORT_CMD_FR_BIT);
-  while (port->cmd & AHCI_HBA_PORT_CMD_CR_BIT);
+  while (readl_relaxed(&port->cmd) & AHCI_HBA_PORT_CMD_FR_BIT);
+  while (readl_relaxed(&port->cmd) & AHCI_HBA_PORT_CMD_CR_BIT);
 }
 
 static void start_port(volatile struct hba_port* port) {
-  while (port->cmd & AHCI_HBA_PORT_CMD_CR_BIT);
-  port->cmd |= AHCI_HBA_PORT_CMD_FRE_BIT;
-  port->cmd |= AHCI_HBA_PORT_CMD_ST_BIT;
+  while (readl_relaxed(&port->cmd) & AHCI_HBA_PORT_CMD_CR_BIT);
+  
+  uint32_t cmd = readl_relaxed(&port->cmd);
+  cmd |= AHCI_HBA_PORT_CMD_FRE_BIT | AHCI_HBA_PORT_CMD_ST_BIT;
+  writel_relaxed(cmd, &port->cmd);
 }
 
 static kstatus_t ahci_init_port(volatile struct hba_port* port) {
@@ -60,13 +69,20 @@ static kstatus_t ahci_init_port(volatile struct hba_port* port) {
     return KSTATUS_ERR_NO_MEMORY;
   }
 
+  wmb();
+
   void* cmd_list_phys = VIRT_TO_PHYS(cmd_list);
   void* fis_phys = VIRT_TO_PHYS(fis);
 
-  port->clb = (uint32_t)((uintptr_t)cmd_list_phys);
-  port->clbu = (uint32_t)(((uint64_t)cmd_list_phys) >> 32);
-  port->fb = (uint32_t)((uintptr_t)fis_phys);
-  port->fbu = (uint32_t)(((uint64_t)fis_phys) >> 32);
+  uint32_t clb = (uint32_t)((uintptr_t)cmd_list_phys);
+  uint32_t clbu = (uint32_t)(((uint64_t)cmd_list_phys) >> 32);
+  uint32_t fb = (uint32_t)((uintptr_t)fis_phys);
+  uint32_t fbu = (uint32_t)(((uint64_t)fis_phys) >> 32);
+
+  writel_relaxed(clb, &port->clb);
+  writel_relaxed(clbu, &port->clbu);
+  writel_relaxed(fb, &port->fb);
+  writel_relaxed(fbu, &port->fbu);
 
   start_port(port);
 
@@ -78,12 +94,13 @@ static kstatus_t ahci_probe_ports(volatile struct hba_mem* hba) {
     if (hba->pi & (1 << i)) {
       volatile struct hba_port* port = &hba->ports[i];
 
-      uint8_t det = port->ssts & 0x0F; // device detection
-      uint8_t ipm = (port->ssts >> 8) & 0x0F; // interface power management
+      uint32_t ssts = readl_relaxed(&port->ssts);
+      uint8_t det = ssts & 0x0F; // device detection
+      uint8_t ipm = (ssts >> 8) & 0x0F; // interface power management
 
       if (det != AHCI_HBA_PORT_DET_PRESENT || ipm != AHCI_HBA_PORT_IPM_ACTIVE)
         continue;
-      if (port->sig != AHCI_DEV_SATA)
+      if (readl_relaxed(&port->sig) != AHCI_DEV_SATA)
         continue;
 
       vga_print_color("AHCI: found port\n", VGA_COLOR_GREEN);
@@ -114,7 +131,9 @@ kstatus_t ahci_init() {
 
   hba = ioremap(bar5_phys, sizeof(struct hba_mem));
 
-  hba->ghc |= AHCI_ENABLE_BIT;
+  uint32_t ghc = readl_relaxed(&hba->ghc);
+  ghc |= AHCI_ENABLE_BIT;
+  writel_relaxed(ghc, &hba->ghc);
 
   kstatus_t status = ahci_probe_ports(hba);
   if (status != KSTATUS_SUCCESS) {
@@ -177,28 +196,33 @@ static void ahci_cmdtbl_build_fis(volatile struct hba_cmd_table* cmdtbl, uint64_
 
 static bool ahci_issue_cmd(volatile struct hba_port* port, uint8_t slot) {
   uint32_t spin = 1000000;
-  while (spin-- > 0 && (port->tfd & AHCI_HBA_PORT_TFD_BSY_BIT || port->tfd & AHCI_HBA_PORT_TFD_DRQ_BIT));
+  while (spin-- > 0 && 
+    (readl_relaxed(&port->tfd) & AHCI_HBA_PORT_TFD_BSY_BIT || 
+      readl_relaxed(&port->tfd) & AHCI_HBA_PORT_TFD_DRQ_BIT));
 
   if (spin == 0) {
     return false;
   }
 
-  port->ci |= 1 << slot;
+  writel(1 << slot, &port->ci);
 
   while (1) {
-    if ((port->ci & (1 << slot)) == 0)
+    if ((readl_relaxed(&port->ci) & (1 << slot)) == 0)
       break;
-    if (port->is & AHCI_HBA_PORT_IS_TFES_BIT)
+    if (readl_relaxed(&port->is) & AHCI_HBA_PORT_IS_TFES_BIT)
       return false;
   }
 
-  if (port->is & AHCI_HBA_PORT_IS_TFES_BIT)
+  if (readl_relaxed(&port->is) & AHCI_HBA_PORT_IS_TFES_BIT)
     return false;
 
   return true;
 }
 
 static struct hba_cmd_table* ahci_alloc_cmdtbl() {
+  /////////////////////////////////////////////////
+  ///// TODO: for those, we need a function that allocs a page, flushed cache, ioremap the page.
+  ///////////////////////////////////////////
   struct hba_cmd_table* cmdtbl = alloc_page();
   if (!cmdtbl) {
     return NULL;
@@ -221,7 +245,6 @@ kstatus_t ahci_read(volatile struct hba_port* port, uint64_t lba, uint64_t count
 
   ahci_cmdtbl_build_fis(cmdtbl, lba, count, AHCI_ATA_CMD_READ_DMA_EXT);
 
-
   uint16_t max_ptrd_entries = (PAGE_SIZE - offsetof(struct hba_cmd_table, prdt_entry))/sizeof(struct hba_prdt_entry);
   int ptrdl = ahci_build_prdt(cmdtbl, max_ptrd_entries, iovec, iovec_count);
   if (ptrdl < 0) {
@@ -232,11 +255,16 @@ kstatus_t ahci_read(volatile struct hba_port* port, uint64_t lba, uint64_t count
   cmd_list[0].w = 0;
   cmd_list[0].cfl = sizeof(struct fis_h2d) / 4; // length in dword
   
+  wmb();  
   
-  
+  ////////////////////////////////////
+  //// TODO: invalidate cache lines. (BEFORE issuing)
+  ////////////////////////////////////
+
   if (!ahci_issue_cmd(port, 0)) 
     return KSTATUS_GENERAL_ERR;
   
+
   return KSTATUS_SUCCESS;
 }
 

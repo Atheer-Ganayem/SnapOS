@@ -11,7 +11,7 @@ void vga_init() {
   vga_buf = (volatile uint16_t*) PHYS_TO_VIRT(0xB8000);
 
   for (int i = 0; i < VGA_BUF_WIDTH * VGA_BUF_HEIGHT; i++) {
-    writew_relaxed((void*)(vga_buf + i), 0x00);
+    writew_relaxed(0x00, (void*)(vga_buf + i));
   }
 }
 
@@ -35,7 +35,7 @@ void vga_putchar_color(char c, enum vga_color color) {
   } 
 
   size_t offset = y * VGA_BUF_WIDTH + x;
-  writew_relaxed((void*)(vga_buf + offset), makechar(c, color));
+  writew_relaxed(makechar(c, color), (void*)(vga_buf + offset));
   
   x++;
   if (x % VGA_BUF_WIDTH == 0) {

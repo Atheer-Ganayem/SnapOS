@@ -1,12 +1,13 @@
 #include <drivers/ahci.h>
 #include <asm/pci.h>
-#include <drivers/vga.h>
 #include <drivers/pci.h>
 #include <string.h>
 #include <paging.h>
 #include <asm/io.h>
 
 volatile struct hba_mem* hba = NULL;
+
+int port_to_return = -1;
 
 static inline volatile struct hba_cmd_header* ahci_get_cmd_list(volatile struct hba_port* port) {
   uintptr_t clbl = (uintptr_t)readl_relaxed(&port->clb);
@@ -103,13 +104,25 @@ static kstatus_t ahci_probe_ports(volatile struct hba_mem* hba) {
       if (readl_relaxed(&port->sig) != AHCI_DEV_SATA)
         continue;
 
-      vga_print_color("AHCI: found port\n", VGA_COLOR_GREEN);
-
       kstatus_t status = ahci_init_port(port);
       if (status != KSTATUS_SUCCESS) {
         return status;
       }
-      vga_print_color("AHCI: init port success\n", VGA_COLOR_GREEN);
+
+      struct block_dev* bdev = kzalloc(sizeof(struct block_dev));
+      if (!bdev) {
+        return KSTATUS_ERR_NO_MEMORY;
+      }
+      char name[] = "satax";
+      name[4] = '0' + i;
+      strcpy(bdev->name, name);
+      bdev->priv_data = (void*)&hba->ports[i];
+      bdev->read = ahci_read;
+      bdev->sector_size = 512; // TODO: query sector size and count
+      bdev->sector_count = UINT64_MAX;
+      block_dev_register(bdev);
+
+      port_to_return = i;
     }
   }
 
@@ -231,7 +244,7 @@ static struct hba_cmd_table* ahci_alloc_cmdtbl() {
   return memset(cmdtbl, 0x00, PAGE_SIZE);
 }
 
-kstatus_t ahci_read(volatile struct hba_port* port, uint64_t lba, uint64_t count, struct phys_iovec* iovec, uint16_t iovec_count) {
+kstatus_t __ahci_read(volatile struct hba_port* port, uint64_t lba, uint64_t count, struct phys_iovec* iovec, uint16_t iovec_count) {
   volatile struct hba_cmd_header* cmd_list = ahci_get_cmd_list(port);
   volatile struct hba_cmd_table* cmdtbl = ahci_get_cmdtbl(&cmd_list[0]);
 
@@ -268,6 +281,7 @@ kstatus_t ahci_read(volatile struct hba_port* port, uint64_t lba, uint64_t count
   return KSTATUS_SUCCESS;
 }
 
-volatile struct hba_port* __ahci_get_port(int i) {
-  return &hba->ports[i];
+kstatus_t ahci_read(struct block_dev* bdev, uint64_t lba, uint64_t count, struct phys_iovec* iovec, uint16_t iovec_count) {
+  volatile struct hba_port* port = (volatile struct hba_port*)bdev->priv_data;
+  return __ahci_read(port, lba, count, iovec, iovec_count);
 }

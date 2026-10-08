@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <types.h>
 #include <mm.h>
+#include <block.h>
 
 #define AHCI_CLASS 0x01
 #define AHCI_SUB_CLASS 0x06
@@ -242,8 +243,6 @@ struct hba_cmd_table {
 
 kstatus_t ahci_init();
 
-kstatus_t ahci_read(volatile struct hba_port* port, uint64_t lba, uint64_t count, struct phys_iovec* iovec, uint16_t iovec_count);
-
-volatile struct hba_port* __ahci_get_port(int i);
+kstatus_t ahci_read(struct block_dev* bdev, uint64_t lba, uint64_t count, struct phys_iovec* iovec, uint16_t iovec_count);
 
 #endif

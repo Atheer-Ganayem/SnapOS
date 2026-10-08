@@ -26,6 +26,12 @@ int memcmp(const void* s1, const void* s2, size_t n) {
   return 0;
 }
 
+size_t strlen(const char* s) {
+  const char* p = s;
+  while (*p) p++;
+  return (size_t)(p - s);
+}
+
 char* strcpy(char* restrict dest, const char* restrict src) {
   char* base_dest = dest;
   while ((*dest++ = *src++)) {}
@@ -43,4 +49,18 @@ int strncmp(const char* s1, const char* s2, size_t n) {
   }
 
   return 0;
+}
+
+char* strncat(char* restrict dest, const char* restrict src, size_t n) {
+  char* base_dest = dest;
+
+  while (*dest) dest++;
+  
+  while (n-- > 0 && *src) {
+    *dest++ = *src++;
+  }
+
+  *dest = 0x00;
+
+  return base_dest;
 }

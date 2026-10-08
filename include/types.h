@@ -11,7 +11,8 @@ typedef enum {
   KSTATUS_ERR_NO_MEM_MAP    = 3,
   KSTATUS_ERR_INVALID_ARGS  = 4,
   KSTATUS_ERR_NOT_FOUND     = 5,
-  KSTATUS_ERR_UNIMPLEMENTED = 6
+  KSTATUS_ERR_UNIMPLEMENTED = 6,
+  KSTATUS_ERR_IO            = 7
 } kstatus_t;
 
 void panic(char* s);

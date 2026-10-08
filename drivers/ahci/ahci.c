@@ -5,6 +5,30 @@
 #include <paging.h>
 #include <asm/io.h>
 
+        #include <drivers/vga.h>
+
+        void print_u64(uint64_t val) {
+    if (val == 0) {
+        vga_putchar('0');
+        return;
+    }
+
+    char buf[21];
+    int i = 0;
+
+    while (val > 0) {
+        buf[i++] = '0' + (val % 10);
+        val /= 10;
+    }
+
+    // Print backwards because we extracted digits from least-to-most significant
+    while (--i >= 0) {
+        vga_putchar(buf[i]);
+    }
+}
+
+kstatus_t ahci_identify(volatile struct hba_port* port, void* buf);
+
 volatile struct hba_mem* hba = NULL;
 
 int port_to_return = -1;
@@ -90,6 +114,37 @@ static kstatus_t ahci_init_port(volatile struct hba_port* port) {
   return KSTATUS_SUCCESS;
 }
 
+static uint64_t __id_get_sector_count_(uint16_t* id) {
+  // bit 15 must be 1, bit 14 must be 1.
+  // bit 10 is set if "48-bit Address feature set supported 
+  // if not (bit 10 set), sector count is in words 60-61.
+  // if set, sector count in words 100-103.
+  uint64_t sector_count = (uint64_t)id[60] | ((uint64_t)id[61] << 16);
+  if (((id[83] & 0xC000) == 0x4000) && (id[83] & (1 << 10))) {
+    sector_count =  (uint64_t)id[100] |
+                    ((uint64_t)id[101] << 16) |
+                    ((uint64_t)id[102] << 32) |
+                    ((uint64_t)id[103] << 48);
+  }
+
+  return sector_count;
+}
+
+static uint64_t __id_get_sector_size(uint16_t* id) {
+  // bit 15 must be 1, bit 14 must be 1.
+  // bit 12 set if "Device Logical Sector Longer than 256 Words".
+  uint32_t sector_size = AHCI_DEFAULT_SECTOR_SIZE;
+  if ((id[106] & 0xC000) == 0x4000) {
+    if (id[106] & (1 << 12)) {
+      uint32_t words_per_sector = id[117] | ((uint32_t)id[118] << 16);
+      if (words_per_sector > 0) { // just in case we get trash value.
+        sector_size =  words_per_sector * 2;
+      } 
+    }
+  }
+  return sector_size;
+}
+
 static kstatus_t ahci_probe_ports(volatile struct hba_mem* hba) {
   for (int i = 0; i < 32; i++) {
     if (hba->pi & (1 << i)) {
@@ -109,17 +164,29 @@ static kstatus_t ahci_probe_ports(volatile struct hba_mem* hba) {
         return status;
       }
 
+      uint16_t* id = kmalloc(512);
+      if (!id) {
+        return KSTATUS_ERR_NO_MEMORY;
+      }
+
+      status = ahci_identify(port, id);
+      if (status != KSTATUS_SUCCESS) {
+        return KSTATUS_ERR_IO;
+      } 
+
       struct block_dev* bdev = kzalloc(sizeof(struct block_dev));
       if (!bdev) {
         return KSTATUS_ERR_NO_MEMORY;
       }
+
       char name[] = "satax";
       name[4] = '0' + i;
       strcpy(bdev->name, name);
       bdev->priv_data = (void*)&hba->ports[i];
       bdev->read = ahci_read;
-      bdev->sector_size = 512; // TODO: query sector size and count
-      bdev->sector_count = UINT64_MAX;
+      bdev->sector_size = __id_get_sector_size(id); 
+      bdev->sector_count = __id_get_sector_count_(id);
+
       block_dev_register(bdev);
 
       port_to_return = i;
@@ -188,7 +255,7 @@ static int ahci_build_prdt(
   return index;
 }
 
-static void ahci_cmdtbl_build_fis(volatile struct hba_cmd_table* cmdtbl, uint64_t lba, uint16_t count, uint8_t cmd) {
+static void ahci_cmdtbl_build_fis(volatile struct hba_cmd_table* cmdtbl, uint64_t lba, uint16_t count, uint8_t cmd, uint8_t device) {
   volatile struct fis_h2d* cfis = (volatile struct fis_h2d*)(&cmdtbl->cfis);
   cfis->fis_type = FIS_TYPE_REG_H2D;
   cfis->c = 1;
@@ -201,7 +268,7 @@ static void ahci_cmdtbl_build_fis(volatile struct hba_cmd_table* cmdtbl, uint64_
   cfis->lba4 = (uint8_t)(lba >> 32);
   cfis->lba5 = (uint8_t)(lba >> 40);
 
-  cfis->device = 1 << 6;
+  cfis->device = device;
 
   cfis->countl = (uint8_t)(count);
   cfis->counth = (uint8_t)(count >> 8);
@@ -256,7 +323,7 @@ kstatus_t __ahci_read(volatile struct hba_port* port, uint64_t lba, uint64_t cou
     ahci_set_cmdtbl(cmd_list, VIRT_TO_PHYS((uintptr_t)cmdtbl));
   }
 
-  ahci_cmdtbl_build_fis(cmdtbl, lba, count, AHCI_ATA_CMD_READ_DMA_EXT);
+  ahci_cmdtbl_build_fis(cmdtbl, lba, count, AHCI_ATA_CMD_READ_DMA_EXT, AHCI_CMDFIS_DEVICE_LBA_MODE);
 
   uint16_t max_ptrd_entries = (PAGE_SIZE - offsetof(struct hba_cmd_table, prdt_entry))/sizeof(struct hba_prdt_entry);
   int ptrdl = ahci_build_prdt(cmdtbl, max_ptrd_entries, iovec, iovec_count);
@@ -284,4 +351,42 @@ kstatus_t __ahci_read(volatile struct hba_port* port, uint64_t lba, uint64_t cou
 kstatus_t ahci_read(struct block_dev* bdev, uint64_t lba, uint64_t count, struct phys_iovec* iovec, uint16_t iovec_count) {
   volatile struct hba_port* port = (volatile struct hba_port*)bdev->priv_data;
   return __ahci_read(port, lba, count, iovec, iovec_count);
+}
+
+kstatus_t ahci_identify(volatile struct hba_port* port, void* buf) {
+  volatile struct hba_cmd_header* cmd_list = ahci_get_cmd_list(port);
+  volatile struct hba_cmd_table* cmdtbl = ahci_get_cmdtbl(&cmd_list[0]);
+
+  if (!cmdtbl) {
+    cmdtbl = ahci_alloc_cmdtbl();
+    if (!cmdtbl) {
+      return KSTATUS_ERR_NO_MEMORY;
+    }
+    ahci_set_cmdtbl(cmd_list, VIRT_TO_PHYS((uintptr_t)cmdtbl));
+  }
+
+  memset((void*)cmdtbl->cfis, 0x00, sizeof(cmdtbl->cfis));
+  ahci_cmdtbl_build_fis(cmdtbl, 0, 0, AHCI_ATA_CMD_IDENTIFY, 0x00);
+
+  struct phys_iovec iovec[] = {{.addr = (uint64_t)VIRT_TO_PHYS(buf), .length = 512}};
+  int ptrdl = ahci_build_prdt(cmdtbl, 1, iovec, 1);
+  if (ptrdl < 0) {
+    return KSTATUS_GENERAL_ERR;
+  }
+
+  cmd_list[0].prdtl = ptrdl;
+  cmd_list[0].w = 0;
+  cmd_list[0].cfl = sizeof(struct fis_h2d) / 4; // length in dword
+  
+  wmb();  
+  
+  ////////////////////////////////////
+  //// TODO: invalidate cache lines. (BEFORE issuing)
+  ////////////////////////////////////
+
+  if (!ahci_issue_cmd(port, 0)) 
+    return KSTATUS_GENERAL_ERR;
+  
+
+  return KSTATUS_SUCCESS;
 }

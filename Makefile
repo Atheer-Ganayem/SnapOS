@@ -5,7 +5,7 @@ ASM = nasm
 CFLAGS = -ffreestanding -O1 -Wall -Wextra -Iinclude -Iarch/$(ARCH)/include -mcmodel=kernel -mno-red-zone -mno-sse -mno-sse2 -mno-mmx -mgeneral-regs-only
 ASMFLAGS = -f elf64
 
-CORE_SRC := $(wildcard kernel/*.c mm/*.c fs/*.c fs/ext2/*.c drivers/*/*.c klibc/*.c)
+CORE_SRC := $(wildcard kernel/*.c mm/*.c fs/*.c fs/*/*.c drivers/*/*.c klibc/*.c block/*.c)
 ARCH_C_SRC := $(wildcard arch/$(ARCH)/*.c arch/$(ARCH)/kernel/*.c arch/$(ARCH)/mm/*.c arch/$(ARCH)/idt/*.c arch/$(ARCH)/apic/*.c arch/$(ARCH)/acpi/*.c arch/$(ARCH)/drivers/ps2/*.c)
 ARCH_S_SRC := $(wildcard arch/$(ARCH)/kernel/*.asm arch/$(ARCH)/idt/*.asm)
 

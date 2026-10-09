@@ -9,6 +9,10 @@ kstatus_t partition_read(struct block_dev* bdev, uint64_t lba, uint64_t count, s
 }
 
 int partition_scan(struct block_dev* bdev) {
+  int res = KSTATUS_SUCCESS;
+  int count = 0;
+  struct block_dev* pbdevs[MBR_ENTRY_COUNT] = {NULL};
+
   uint32_t size = bdev->sector_size > 512 ? bdev->sector_size : 512;
   char* buf = kmalloc(size);
   if (!buf) {
@@ -18,11 +22,10 @@ int partition_scan(struct block_dev* bdev) {
   struct phys_iovec vec[] = {{.addr = (uint64_t)VIRT_TO_PHYS(buf), .length = size}};
   kstatus_t status = bdev->read(bdev, 0, 1, vec, 1);
   if (status != KSTATUS_SUCCESS) {
-    kfree(buf);
-    return -KSTATUS_ERR_IO;
+    res = -KSTATUS_ERR_IO;
+    goto exit;
   }
 
-  int count = 0;
   struct mbr_partition_entry* entry = (struct mbr_partition_entry*)(buf + MBR_OFFSET);
   for (int i = 0; i < MBR_ENTRY_COUNT; i++, entry++) {
     if (entry->sys_id == 0x00) {
@@ -31,15 +34,16 @@ int partition_scan(struct block_dev* bdev) {
 
     struct block_dev* pbdev = kzalloc(sizeof(struct block_dev));
     if (!pbdev) {
-      kfree(buf);
-      return KSTATUS_ERR_NO_MEMORY;
+      res = -KSTATUS_ERR_NO_MEMORY;
+      goto exit;
     }
+
+    pbdevs[count++] = pbdev;
 
     struct partition_info* pinfo = kzalloc(sizeof(struct partition_info));
     if (!pinfo) {
-      kfree(buf);
-      kfree(pbdev);
-      return KSTATUS_ERR_NO_MEMORY;
+      res = -KSTATUS_ERR_NO_MEMORY;
+      goto exit;
     }
 
     char suffix[] = "px";
@@ -51,11 +55,20 @@ int partition_scan(struct block_dev* bdev) {
     pbdev->read = partition_read;
     pinfo->lba_start = entry->lba_start;
     pinfo->parent = bdev;
+  }
 
-    block_dev_register(pbdev);
-    count++;
+exit:
+  for (int i = 0; i < count; i++) {
+    if (pbdevs[i] && res != KSTATUS_SUCCESS) {
+      if (pbdevs[i]->priv_data) {
+        kfree(pbdevs[i]->priv_data);
+      }
+      kfree(pbdevs[i]);
+    } else if (pbdevs[i] && res == KSTATUS_SUCCESS) {
+      block_dev_register(pbdevs[i]);
+    }
   }
 
   kfree(buf);
-  return count;
+  return res == KSTATUS_SUCCESS ? count : res;
 }

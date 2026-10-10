@@ -51,6 +51,7 @@ int partition_scan(struct block_dev* bdev) {
     strcpy(pbdev->name, bdev->name);
     strncat(pbdev->name, suffix, sizeof(pbdev->name) - strlen(bdev->name) - 1);
     pbdev->sector_count = entry->sector_count;
+    pbdev->sector_size = bdev->sector_size;
     pbdev->priv_data = (void*)pinfo;
     pbdev->read = partition_read;
     pinfo->lba_start = entry->lba_start;

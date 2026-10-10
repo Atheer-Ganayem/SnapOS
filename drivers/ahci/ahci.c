@@ -5,33 +5,9 @@
 #include <paging.h>
 #include <asm/io.h>
 
-        #include <drivers/vga.h>
-
-        void print_u64(uint64_t val) {
-    if (val == 0) {
-        vga_putchar('0');
-        return;
-    }
-
-    char buf[21];
-    int i = 0;
-
-    while (val > 0) {
-        buf[i++] = '0' + (val % 10);
-        val /= 10;
-    }
-
-    // Print backwards because we extracted digits from least-to-most significant
-    while (--i >= 0) {
-        vga_putchar(buf[i]);
-    }
-}
-
-kstatus_t ahci_identify(volatile struct hba_port* port, void* buf);
-
 volatile struct hba_mem* hba = NULL;
 
-int port_to_return = -1;
+kstatus_t ahci_identify(volatile struct hba_port* port, void* buf);
 
 static inline volatile struct hba_cmd_header* ahci_get_cmd_list(volatile struct hba_port* port) {
   uintptr_t clbl = (uintptr_t)readl_relaxed(&port->clb);
@@ -82,6 +58,10 @@ static void start_port(volatile struct hba_port* port) {
 }
 
 static kstatus_t ahci_init_port(volatile struct hba_port* port) {
+  writel(0, &port->ie);
+  writel(0xFFFFFFFF, &port->serr);
+  writel(0xFFFFFFFF, &port->is);
+
   stop_port(port);
 
   void* cmd_list = kzalloc(sizeof(struct hba_cmd_header) * AHCI_COMMAND_LIST_MAX_COUNT);
@@ -93,6 +73,7 @@ static kstatus_t ahci_init_port(volatile struct hba_port* port) {
   if (!fis) {
     return KSTATUS_ERR_NO_MEMORY;
   }
+
 
   wmb();
 
@@ -188,8 +169,6 @@ static kstatus_t ahci_probe_ports(volatile struct hba_mem* hba) {
       bdev->sector_count = __id_get_sector_count_(id);
 
       block_dev_register(bdev);
-
-      port_to_return = i;
     }
   }
 
@@ -276,18 +255,19 @@ static void ahci_cmdtbl_build_fis(volatile struct hba_cmd_table* cmdtbl, uint64_
 
 static bool ahci_issue_cmd(volatile struct hba_port* port, uint8_t slot) {
   uint32_t spin = 1000000;
-  while (spin-- > 0 && 
+  while (spin > 0 && 
     (readl_relaxed(&port->tfd) & AHCI_HBA_PORT_TFD_BSY_BIT || 
-      readl_relaxed(&port->tfd) & AHCI_HBA_PORT_TFD_DRQ_BIT));
+      readl_relaxed(&port->tfd) & AHCI_HBA_PORT_TFD_DRQ_BIT)) spin--;
 
-  if (spin == 0) {
+  if (spin == 0)
     return false;
-  }
 
-  writel(1 << slot, &port->ci);
+
+  writel(0xFFFFFFFF, &port->is);
+  writel(1U << slot, &port->ci);
 
   while (1) {
-    if ((readl_relaxed(&port->ci) & (1 << slot)) == 0)
+    if ((readl_relaxed(&port->ci) & (1U << slot)) == 0)
       break;
     if (readl_relaxed(&port->is) & AHCI_HBA_PORT_IS_TFES_BIT)
       return false;
@@ -307,6 +287,7 @@ static struct hba_cmd_table* ahci_alloc_cmdtbl() {
   if (!cmdtbl) {
     return NULL;
   }
+
 
   return memset(cmdtbl, 0x00, PAGE_SIZE);
 }
@@ -334,7 +315,7 @@ kstatus_t __ahci_read(volatile struct hba_port* port, uint64_t lba, uint64_t cou
   cmd_list[0].prdtl = ptrdl;
   cmd_list[0].w = 0;
   cmd_list[0].cfl = sizeof(struct fis_h2d) / 4; // length in dword
-  
+
   wmb();  
   
   ////////////////////////////////////
@@ -342,9 +323,9 @@ kstatus_t __ahci_read(volatile struct hba_port* port, uint64_t lba, uint64_t cou
   ////////////////////////////////////
 
   if (!ahci_issue_cmd(port, 0)) 
-    return KSTATUS_GENERAL_ERR;
+    return KSTATUS_ERR_IO;
   
-
+  
   return KSTATUS_SUCCESS;
 }
 

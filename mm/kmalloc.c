@@ -171,10 +171,12 @@ void kfree(void* vaddr) {
     return;
   }
 
-  if (--(header->count) == 0) {
-    free_page(header);
-    return;
-  }
+  ///// TODO: i found a bug, we are freeing a page when chuncks of it are still in the cache!!!!
+  // if (--(header->count) == 0) {
+  //   vga_print("page is gone\n");
+  //   free_page(header);
+  //   return;
+  // }
 
   struct free_slot* slot = (struct free_slot*)vaddr;
   slot->next = tiers[header->tier_idx].free_head;

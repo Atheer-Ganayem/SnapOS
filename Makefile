@@ -23,7 +23,7 @@ all: build_bootloader bin/kernel.bin
 	mkdir -p /tmp/snapos_mnt
 	
 	@LOOP_DEV=$$(sudo losetup -P -f --show snapos.img); \
-	sudo mkfs.ext2 -q $${LOOP_DEV}p1; \
+	sudo mkfs.ext2 -q -L SNAPOS_ROOT $${LOOP_DEV}p1; \
 	sudo dd if=bin/boot.bin of=$${LOOP_DEV} bs=446 count=1 conv=notrunc status=none; \
 	sudo dd if=bin/stage2.bin of=$${LOOP_DEV} bs=512 seek=1 conv=notrunc status=none; \
 	sudo mount $${LOOP_DEV}p1 /tmp/snapos_mnt; \

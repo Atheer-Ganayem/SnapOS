@@ -53,6 +53,8 @@ kstatus_t pmm_init() {
     }
   }
 
+  pmm_current_alloc_frame = pmm_alloc_frame;
+
   return KSTATUS_SUCCESS;
 }
 

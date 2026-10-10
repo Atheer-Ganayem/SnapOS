@@ -101,6 +101,7 @@ void init_apic() {
     panic("init_apic: couldn't find MADT.");
   }
 
+
   // init cores array
   size_t count = madt_count_cores(madt);
   if (count == 0) {
@@ -119,6 +120,7 @@ void init_apic() {
   if (awake_cores_count != 1) {
     panic("init_apic: found more or less than 1 awake core.");
   }
+
 
   ioremap((uint64_t)VIRT_TO_PHYS(ioapic.addr), IOAPIC_SIZE);
 

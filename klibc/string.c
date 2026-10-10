@@ -39,6 +39,21 @@ char* strcpy(char* restrict dest, const char* restrict src) {
   return base_dest;
 }
 
+char* strncpy(char* restrict dest, const char* restrict src, size_t n) {
+  char* base_dest = dest;
+  while (n > 0 && *src) {
+    *dest++ = *src++;
+    n--;
+  }
+  
+  while (n > 0) {
+    *dest++ = 0x00;
+    n--;
+  }
+
+  return base_dest;
+}
+
 int strncmp(const char* s1, const char* s2, size_t n) {
   for (; n > 0; n--, s1++, s2++) {
     if (*s1 != *s2) {

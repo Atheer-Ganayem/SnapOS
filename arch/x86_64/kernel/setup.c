@@ -82,6 +82,6 @@ void init() {
 void setup_stage2() {
   init_apic();
 
-  ps2_init();
-  sti();
+  // ps2_init();
+  cli();
 }

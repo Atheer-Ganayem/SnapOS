@@ -42,7 +42,7 @@ struct inode* ext2_read_inode(struct block_dev* bdev, struct superblock* sb, uin
     .length = sb->block_size,
   }};
 
-  if (bdev->read(bdev, lba, sb->sectors_per_block, iovec, 1) != KSTATUS_SUCCESS)
+  if (bdev->read(bdev, lba, sb->sectors_per_block, iovec, 1) < 0)
     goto out_err;
 
   memcpy(ext2_inode, block_buf + (inode_size * index_in_block), sizeof(struct ext2_inode));

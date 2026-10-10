@@ -247,8 +247,8 @@ struct hba_cmd_table {
   struct hba_prdt_entry prdt_entry[];
 } __attribute__((packed));
 
-kstatus_t ahci_init();
+int ahci_init();
 
-kstatus_t ahci_read(struct block_dev* bdev, uint64_t lba, uint64_t count, struct phys_iovec* iovec, uint16_t iovec_count);
+int ahci_read(struct block_dev* bdev, uint64_t lba, uint64_t count, struct phys_iovec* iovec, uint16_t iovec_count);
 
 #endif

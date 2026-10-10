@@ -134,13 +134,13 @@ struct ext2_fs_info {
   struct ext2_blockgroup_desc* bgd_table;
 };
 
-kstatus_t ext2_probe(struct block_dev* bdev, struct fs_probe_info* info);
+int ext2_probe(struct block_dev* bdev, struct fs_probe_info* info);
 
-kstatus_t ext2_init_singly(struct ext2_inode_info* i_info);
+int ext2_init_singly(struct ext2_inode_info* i_info);
 
 struct inode* ext2_read_inode(struct block_dev* bdev, struct superblock* sb, uint32_t ino);
 
-kstatus_t ext2_mount(struct block_dev* bdev, struct superblock** out_sb);
+int ext2_mount(struct block_dev* bdev, struct superblock** out_sb);
 
 int ext2_lookup(struct inode* dir, struct dentry* child);
 

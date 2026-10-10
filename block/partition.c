@@ -2,27 +2,27 @@
 #include <types.h>
 #include <string.h>
 
-kstatus_t partition_read(struct block_dev* bdev, uint64_t lba, uint64_t count, struct phys_iovec* iovec, uint16_t iovec_count) {
+int partition_read(struct block_dev* bdev, uint64_t lba, uint64_t count, struct phys_iovec* iovec, uint16_t iovec_count) {
   struct partition_info* pinfo = (struct partition_info*)bdev->priv_data;
   uint64_t real_lba = pinfo->lba_start + lba;
   return pinfo->parent->read(pinfo->parent, real_lba, count, iovec, iovec_count);
 }
 
 int partition_scan(struct block_dev* bdev) {
-  int res = KSTATUS_SUCCESS;
+  int res = 0;
   int count = 0;
   struct block_dev* pbdevs[MBR_ENTRY_COUNT] = {NULL};
 
   uint32_t size = bdev->sector_size > 512 ? bdev->sector_size : 512;
   char* buf = kmalloc(size);
   if (!buf) {
-    return -KSTATUS_ERR_NO_MEMORY;
+    return -ENOMEM;
   }
 
   struct phys_iovec vec[] = {{.addr = (uint64_t)VIRT_TO_PHYS(buf), .length = size}};
-  kstatus_t status = bdev->read(bdev, 0, 1, vec, 1);
-  if (status != KSTATUS_SUCCESS) {
-    res = -KSTATUS_ERR_IO;
+  int status = bdev->read(bdev, 0, 1, vec, 1);
+  if (status != 0) {
+    res = -EIO;
     goto exit;
   }
 
@@ -34,7 +34,7 @@ int partition_scan(struct block_dev* bdev) {
 
     struct block_dev* pbdev = kzalloc(sizeof(struct block_dev));
     if (!pbdev) {
-      res = -KSTATUS_ERR_NO_MEMORY;
+      res = -ENOMEM;
       goto exit;
     }
 
@@ -42,7 +42,7 @@ int partition_scan(struct block_dev* bdev) {
 
     struct partition_info* pinfo = kzalloc(sizeof(struct partition_info));
     if (!pinfo) {
-      res = -KSTATUS_ERR_NO_MEMORY;
+      res = -ENOMEM;
       goto exit;
     }
 
@@ -60,16 +60,16 @@ int partition_scan(struct block_dev* bdev) {
 
 exit:
   for (int i = 0; i < count; i++) {
-    if (pbdevs[i] && res != KSTATUS_SUCCESS) {
+    if (pbdevs[i] && res != 0) {
       if (pbdevs[i]->priv_data) {
         kfree(pbdevs[i]->priv_data);
       }
       kfree(pbdevs[i]);
-    } else if (pbdevs[i] && res == KSTATUS_SUCCESS) {
+    } else if (pbdevs[i] && res == 0) {
       block_dev_register(pbdevs[i]);
     }
   }
 
   kfree(buf);
-  return res == KSTATUS_SUCCESS ? count : res;
+  return res == 0 ? count : res;
 }

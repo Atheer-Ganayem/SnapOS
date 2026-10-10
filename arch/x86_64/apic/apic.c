@@ -6,8 +6,6 @@
 #include <types.h>
 #include <asm/cores.h>
 
-#include <drivers/vga.h>
-
 struct lapic* lapic = NULL;
 struct ioapic ioapic = {.addr = NULL};
 struct irq_override irq_overrides[IRQ_COUNT] = {}; 

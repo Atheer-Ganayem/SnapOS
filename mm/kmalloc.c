@@ -46,10 +46,10 @@ static int size_to_tier_idx(size_t size) {
   return TOO_BIG_SIZE; 
 }
 
-static kstatus_t init_tier(uint8_t tier) {
+static int init_tier(uint8_t tier) {
   void* frame = alloc_page();
   if (!frame) {
-    return KSTATUS_ERR_NO_MEMORY;
+    return -ENOMEM;
   }
   
   struct pool_page_header* header = (struct pool_page_header*)frame;
@@ -69,7 +69,7 @@ static kstatus_t init_tier(uint8_t tier) {
   last_slot->next = NULL;
   tiers[tier].free_head = (void*)((uintptr_t)frame + slotsize);
 
-  return KSTATUS_SUCCESS;
+  return 0;
 }
 
 static void* kmalloc_small(uint8_t tier) {
@@ -83,8 +83,8 @@ static void* kmalloc_small(uint8_t tier) {
     return (void*)head;
   }
 
-  kstatus_t res = init_tier(tier);
-  if (res != KSTATUS_SUCCESS) {
+  int res = init_tier(tier);
+  if (res < 0) {
     return NULL;
   }
 

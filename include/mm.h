@@ -39,17 +39,17 @@ struct phys_iovec {
   uint64_t length;
 };
 
-kstatus_t early_pmm_init();
+int early_pmm_init();
 void* early_pmm_alloc_frame();
 void* early_pmm_alloc_continuous_frames(size_t count);
 void* early_pmm_get_max_usable();
 void* ealry_pmm_get_cursor();
 void* pmm_alloc_frame();
 
-kstatus_t vmm_init();
+int vmm_init();
 void* ioremap(uint64_t paddr, uint64_t size);
 
-kstatus_t pmm_init();
+int pmm_init();
 void* pmm_alloc_frame();
 void pmm_free_frame(void* paddr);
 void* pmm_alloc_contiguous_frames(size_t count);

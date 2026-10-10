@@ -8,18 +8,24 @@
 
 typedef __PTRDIFF_TYPE__ ssize_t;
 
-typedef enum {
-  KSTATUS_SUCCESS           = 0,
-  KSTATUS_GENERAL_ERR       = 1,
-  KSTATUS_ERR_NO_MEMORY     = 2,
-  KSTATUS_ERR_NO_MEM_MAP    = 3,
-  KSTATUS_ERR_INVALID_ARGS  = 4,
-  KSTATUS_ERR_NOT_FOUND     = 5,
-  KSTATUS_ERR_UNIMPLEMENTED = 6,
-  KSTATUS_ERR_IO            = 7,
-  KSTATUS_FS_PROBE_FAIL     = 8,
-  KSTATUS_ERR_NO_ROOT       = 9
-} kstatus_t;
+#define MAX_ERRNO   4095
+
+#define ERR_PTR(err) ((void*)(intptr_t)(err))
+
+#define PTR_ERR(ptr) ((intptr_t)(ptr))
+
+#define IS_ERR(ptr)  ((uintptr_t)(ptr) >= (uintptr_t)-MAX_ERRNO)
+
+#define EPERM            1      // Operation not permitted
+#define ENOENT           2      // No entity
+#define EIO              5
+#define ENOMEM          12
+#define EACCES          13      // Permission denied
+#define EFAULT          14      // Bad address (Page Fault equivalent)
+#define EEXIST          17      // File exists
+#define ENODEV          19
+#define ENOTDIR         20      // Not a directory
+#define EINVAL          22      // Invalid argument
 
 void panic(char* s);
 

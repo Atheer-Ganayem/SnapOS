@@ -10,10 +10,10 @@ extern size_t clean_count;
 
 static pgd_t* kernel_pgd;
 
-kstatus_t vmm_init() {
+int vmm_init() {
   void* pgd_raw = pmm_current_alloc_frame();
   if (!pgd_raw) {
-    return KSTATUS_ERR_NO_MEMORY;
+    return -ENOMEM;
   }
 
   memset(PHYS_TO_VIRT((uint64_t)pgd_raw), 0x00, PAGE_SIZE);
@@ -38,7 +38,7 @@ kstatus_t vmm_init() {
 
   arch_mmu_switch(pgd_raw);
 
-  return KSTATUS_SUCCESS;
+  return 0;
 }
 
 void* ioremap(uint64_t paddr, uint64_t size) {

@@ -14,12 +14,12 @@ struct inode;
 
 typedef ssize_t (*file_read_t)(struct file* file, void* buf, size_t count, uint64_t offset);
 
-typedef kstatus_t (*fs_probe_t)(struct block_dev* bdev, struct fs_probe_info* info);
-typedef kstatus_t (*fs_mount_t)(struct block_dev* bdev, struct superblock** sb);
+typedef int (*fs_probe_t)(struct block_dev* bdev, struct fs_probe_info* info);
+typedef int (*fs_mount_t)(struct block_dev* bdev, struct superblock** sb);
 
 typedef int (*inode_lookup_t)(struct inode* dir, struct dentry* child);
-// typedef kstatus_t (*inode_create_t)(struct inode* dir, struct dentry* child);
-// typedef kstatus_t (*inode_mkdir_t)(struct inode* dir, struct dentry* child);
+// typedef int (*inode_create_t)(struct inode* dir, struct dentry* child);
+// typedef int (*inode_mkdir_t)(struct inode* dir, struct dentry* child);
 
 struct fs_driver {
   char name[16];
@@ -76,11 +76,12 @@ struct dentry {
   struct superblock* sb;
 };
 
-struct dentry* d_alloc(struct dentry* parent, const char* name);
 
 void vfs_init();
 int vfs_scan_partitions();
-kstatus_t vfs_mount_root();
+int vfs_mount_root();
 
+struct dentry* d_alloc(struct dentry* parent, const char* name);
+void d_add(struct dentry* child, struct inode* inode);
 
 #endif

@@ -7,7 +7,7 @@
 
 volatile struct hba_mem* hba = NULL;
 
-kstatus_t ahci_identify(volatile struct hba_port* port, void* buf);
+int ahci_identify(volatile struct hba_port* port, void* buf);
 
 static inline volatile struct hba_cmd_header* ahci_get_cmd_list(volatile struct hba_port* port) {
   uintptr_t clbl = (uintptr_t)readl_relaxed(&port->clb);
@@ -57,7 +57,7 @@ static void start_port(volatile struct hba_port* port) {
   writel_relaxed(cmd, &port->cmd);
 }
 
-static kstatus_t ahci_init_port(volatile struct hba_port* port) {
+static int ahci_init_port(volatile struct hba_port* port) {
   writel(0, &port->ie);
   writel(0xFFFFFFFF, &port->serr);
   writel(0xFFFFFFFF, &port->is);
@@ -66,12 +66,12 @@ static kstatus_t ahci_init_port(volatile struct hba_port* port) {
 
   void* cmd_list = kzalloc(sizeof(struct hba_cmd_header) * AHCI_COMMAND_LIST_MAX_COUNT);
   if (!cmd_list) {
-    return KSTATUS_ERR_NO_MEMORY;
+    return -ENOMEM;
   }
 
   void* fis = kzalloc(sizeof(struct hba_fis));
   if (!fis) {
-    return KSTATUS_ERR_NO_MEMORY;
+    return -ENOMEM;
   }
 
 
@@ -92,7 +92,7 @@ static kstatus_t ahci_init_port(volatile struct hba_port* port) {
 
   start_port(port);
 
-  return KSTATUS_SUCCESS;
+  return 0;
 }
 
 static uint64_t __id_get_sector_count_(uint16_t* id) {
@@ -126,7 +126,7 @@ static uint64_t __id_get_sector_size(uint16_t* id) {
   return sector_size;
 }
 
-static kstatus_t ahci_probe_ports(volatile struct hba_mem* hba) {
+static int ahci_probe_ports(volatile struct hba_mem* hba) {
   for (int i = 0; i < 32; i++) {
     if (hba->pi & (1 << i)) {
       volatile struct hba_port* port = &hba->ports[i];
@@ -140,24 +140,24 @@ static kstatus_t ahci_probe_ports(volatile struct hba_mem* hba) {
       if (readl_relaxed(&port->sig) != AHCI_DEV_SATA)
         continue;
 
-      kstatus_t status = ahci_init_port(port);
-      if (status != KSTATUS_SUCCESS) {
+      int status = ahci_init_port(port);
+      if (status < 0) {
         return status;
       }
 
       uint16_t* id = kmalloc(512);
       if (!id) {
-        return KSTATUS_ERR_NO_MEMORY;
+        return -ENOMEM;
       }
 
       status = ahci_identify(port, id);
-      if (status != KSTATUS_SUCCESS) {
-        return KSTATUS_ERR_IO;
+      if (status < 0) {
+        return -EIO;
       } 
 
       struct block_dev* bdev = kzalloc(sizeof(struct block_dev));
       if (!bdev) {
-        return KSTATUS_ERR_NO_MEMORY;
+        return -ENOMEM;
       }
 
       char name[] = "satax";
@@ -172,13 +172,13 @@ static kstatus_t ahci_probe_ports(volatile struct hba_mem* hba) {
     }
   }
 
-  return KSTATUS_SUCCESS;
+  return 0;
 }
 
-kstatus_t ahci_init() {
+int ahci_init() {
   struct pci_device pci_dev = pci_get_by_class(AHCI_CLASS, AHCI_SUB_CLASS);
   if (!pci_dev.found) {
-    return KSTATUS_ERR_NOT_FOUND;
+    return -ENODEV;
   }
 
   uint32_t cmd_reg = pci_read_dword(&pci_dev, 0x04);
@@ -194,12 +194,12 @@ kstatus_t ahci_init() {
   ghc |= AHCI_ENABLE_BIT;
   writel_relaxed(ghc, &hba->ghc);
 
-  kstatus_t status = ahci_probe_ports(hba);
-  if (status != KSTATUS_SUCCESS) {
+  int status = ahci_probe_ports(hba);
+  if (status < 0) {
     return status;
   }
 
-  return KSTATUS_SUCCESS;
+  return 0;
 }
 
 static int ahci_build_prdt(
@@ -216,7 +216,7 @@ static int ahci_build_prdt(
 
     while (bytes_left) {
       if (index >= max_entries) {
-        return KSTATUS_ERR_NO_MEMORY;
+        return -ENOMEM;
       }
 
       uint32_t chunck_size = bytes_left > AHCI_PHYSICAL_REGION_MAX_LENGTH ? AHCI_PHYSICAL_REGION_MAX_LENGTH : bytes_left;
@@ -292,14 +292,14 @@ static struct hba_cmd_table* ahci_alloc_cmdtbl() {
   return memset(cmdtbl, 0x00, PAGE_SIZE);
 }
 
-kstatus_t __ahci_read(volatile struct hba_port* port, uint64_t lba, uint64_t count, struct phys_iovec* iovec, uint16_t iovec_count) {
+int __ahci_read(volatile struct hba_port* port, uint64_t lba, uint64_t count, struct phys_iovec* iovec, uint16_t iovec_count) {
   volatile struct hba_cmd_header* cmd_list = ahci_get_cmd_list(port);
   volatile struct hba_cmd_table* cmdtbl = ahci_get_cmdtbl(&cmd_list[0]);
 
   if (!cmdtbl) {
     cmdtbl = ahci_alloc_cmdtbl();
     if (!cmdtbl) {
-      return KSTATUS_ERR_NO_MEMORY;
+      return -ENOMEM;
     }
     ahci_set_cmdtbl(cmd_list, VIRT_TO_PHYS((uintptr_t)cmdtbl));
   }
@@ -309,7 +309,7 @@ kstatus_t __ahci_read(volatile struct hba_port* port, uint64_t lba, uint64_t cou
   uint16_t max_ptrd_entries = (PAGE_SIZE - offsetof(struct hba_cmd_table, prdt_entry))/sizeof(struct hba_prdt_entry);
   int ptrdl = ahci_build_prdt(cmdtbl, max_ptrd_entries, iovec, iovec_count);
   if (ptrdl < 0) {
-    return KSTATUS_GENERAL_ERR;
+    return ptrdl;
   }
 
   cmd_list[0].prdtl = ptrdl;
@@ -323,25 +323,25 @@ kstatus_t __ahci_read(volatile struct hba_port* port, uint64_t lba, uint64_t cou
   ////////////////////////////////////
 
   if (!ahci_issue_cmd(port, 0)) 
-    return KSTATUS_ERR_IO;
+    return -EIO;
   
   
-  return KSTATUS_SUCCESS;
+  return 0;
 }
 
-kstatus_t ahci_read(struct block_dev* bdev, uint64_t lba, uint64_t count, struct phys_iovec* iovec, uint16_t iovec_count) {
+int ahci_read(struct block_dev* bdev, uint64_t lba, uint64_t count, struct phys_iovec* iovec, uint16_t iovec_count) {
   volatile struct hba_port* port = (volatile struct hba_port*)bdev->priv_data;
   return __ahci_read(port, lba, count, iovec, iovec_count);
 }
 
-kstatus_t ahci_identify(volatile struct hba_port* port, void* buf) {
+int ahci_identify(volatile struct hba_port* port, void* buf) {
   volatile struct hba_cmd_header* cmd_list = ahci_get_cmd_list(port);
   volatile struct hba_cmd_table* cmdtbl = ahci_get_cmdtbl(&cmd_list[0]);
 
   if (!cmdtbl) {
     cmdtbl = ahci_alloc_cmdtbl();
     if (!cmdtbl) {
-      return KSTATUS_ERR_NO_MEMORY;
+      return -ENOMEM;
     }
     ahci_set_cmdtbl(cmd_list, VIRT_TO_PHYS((uintptr_t)cmdtbl));
   }
@@ -352,7 +352,7 @@ kstatus_t ahci_identify(volatile struct hba_port* port, void* buf) {
   struct phys_iovec iovec[] = {{.addr = (uint64_t)VIRT_TO_PHYS(buf), .length = 512}};
   int ptrdl = ahci_build_prdt(cmdtbl, 1, iovec, 1);
   if (ptrdl < 0) {
-    return KSTATUS_GENERAL_ERR;
+    return -ptrdl;
   }
 
   cmd_list[0].prdtl = ptrdl;
@@ -366,8 +366,8 @@ kstatus_t ahci_identify(volatile struct hba_port* port, void* buf) {
   ////////////////////////////////////
 
   if (!ahci_issue_cmd(port, 0)) 
-    return KSTATUS_GENERAL_ERR;
+    return -EIO;
   
 
-  return KSTATUS_SUCCESS;
+  return 0;
 }

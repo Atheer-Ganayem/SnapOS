@@ -13,7 +13,7 @@
 
 struct block_dev;
 
-typedef kstatus_t (*bdev_read_t)(struct block_dev* bdev, uint64_t lba, uint64_t count, struct phys_iovec* iovec, uint16_t iovec_count);
+typedef int (*bdev_read_t)(struct block_dev* bdev, uint64_t lba, uint64_t count, struct phys_iovec* iovec, uint16_t iovec_count);
 
 struct block_dev {
   char name[BLOCK_DEV_NAME_MAX];

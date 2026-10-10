@@ -3,7 +3,7 @@
 #include <mm.h>
 #include <vfs.h>
 
-kstatus_t ext2_read_superblock(struct block_dev* bdev, struct ext2_superblock* out_sb) {
+int ext2_read_superblock(struct block_dev* bdev, struct ext2_superblock* out_sb) {
   uint32_t start_sector = EXT2_SUPERBLOCK_OFFSET / bdev->sector_size;
   uint32_t end_byte = EXT2_SUPERBLOCK_OFFSET + sizeof(struct ext2_superblock);
   uint32_t end_sector = (end_byte + bdev->sector_size - 1) / bdev->sector_size;
@@ -12,12 +12,12 @@ kstatus_t ext2_read_superblock(struct block_dev* bdev, struct ext2_superblock* o
 
   void* buf = kmalloc(total_bytes);
   if (!buf)
-    return KSTATUS_ERR_NO_MEMORY;
+    return -ENOMEM;
   
 
   struct phys_iovec iovec[] = {{.addr = (uint64_t)VIRT_TO_PHYS(buf), .length = total_bytes}};
-  kstatus_t status = bdev->read(bdev, start_sector, sector_count, iovec, 1);
-  if (status != KSTATUS_SUCCESS) {
+  int status = bdev->read(bdev, start_sector, sector_count, iovec, 1);
+  if (status < 0) {
     kfree(buf);
     return status;
   }
@@ -26,16 +26,16 @@ kstatus_t ext2_read_superblock(struct block_dev* bdev, struct ext2_superblock* o
   memcpy(out_sb, (struct ext2_superblock*)((uintptr_t)buf + offset), sizeof(struct ext2_superblock));
 
   kfree(buf);
-  return KSTATUS_SUCCESS;
+  return 0;
 }
 
-kstatus_t ext2_probe(struct block_dev* bdev, struct fs_probe_info* info) {
+int ext2_probe(struct block_dev* bdev, struct fs_probe_info* info) {
   struct ext2_superblock* super = kmalloc(sizeof(struct ext2_superblock));
   if (!super)
-    return KSTATUS_ERR_NO_MEMORY;
+    return -ENOMEM;
   
-  kstatus_t status = ext2_read_superblock(bdev, super);
-  if (status != KSTATUS_SUCCESS) {
+  int status = ext2_read_superblock(bdev, super);
+  if (status < 0) {
     kfree(super);
     return status;
   }
@@ -44,7 +44,7 @@ kstatus_t ext2_probe(struct block_dev* bdev, struct fs_probe_info* info) {
       super->version_major != 1 ||
       (super->required_features & ~EXT2_FEATURE_REQUIRED_SUPPORTED)) {
     kfree(super);
-    return KSTATUS_FS_PROBE_FAIL;
+    return -EINVAL;
   }
 
   if (info) {
@@ -54,10 +54,10 @@ kstatus_t ext2_probe(struct block_dev* bdev, struct fs_probe_info* info) {
 
 
   kfree(super);
-  return KSTATUS_SUCCESS;
+  return 0;
 };
 
-static kstatus_t ext2_fill_bgd_table_info(struct block_dev* bdev, struct ext2_fs_info* info) {
+static int ext2_fill_bgd_table_info(struct block_dev* bdev, struct ext2_fs_info* info) {
   info->inodes_per_group = info->superblock.inodes_per_blockgroup;
   info->block_per_group = info->superblock.blocks_per_blockgroup;
   info->block_group_count = (info->superblock.inode_count + info->inodes_per_group - 1) / info->inodes_per_group;
@@ -70,7 +70,7 @@ static kstatus_t ext2_fill_bgd_table_info(struct block_dev* bdev, struct ext2_fs
 
   struct ext2_blockgroup_desc* bgd_table = kmalloc(block_count * block_size);
   if (!bgd_table) {
-    return KSTATUS_ERR_NO_MEMORY;
+    return -ENOMEM;
   }
 
   uint32_t sectors_per_block = block_size / bdev->sector_size;
@@ -82,15 +82,15 @@ static kstatus_t ext2_fill_bgd_table_info(struct block_dev* bdev, struct ext2_fs
     .length = block_count * block_size
   }};
 
-  kstatus_t status = bdev->read(bdev, lba, lba_count, iovec, 1);
-  if (status != KSTATUS_SUCCESS) {
+  int status = bdev->read(bdev, lba, lba_count, iovec, 1);
+  if (status < 0) {
     kfree(bgd_table);
     return status;
   }
 
   info->bgd_table = bgd_table;
 
-  return KSTATUS_SUCCESS;
+  return 0;
 }
 
 static struct dentry* ext2_get_root(struct block_dev* bdev, struct superblock* sb) {
@@ -104,34 +104,34 @@ static struct dentry* ext2_get_root(struct block_dev* bdev, struct superblock* s
     return NULL;
   }
 
-  d->inode = inode;
   d->sb = sb;
+  d_add(d, inode);
 
   return d;
 }
 
-kstatus_t ext2_mount(struct block_dev* bdev, struct superblock** out_sb) {
+int ext2_mount(struct block_dev* bdev, struct superblock** out_sb) {
   struct superblock* sb = kzalloc(sizeof(struct superblock));
   if (!sb)
-    return KSTATUS_ERR_NO_MEMORY;
+    return -ENOMEM;
     
   struct ext2_fs_info* info = kmalloc(sizeof(struct ext2_fs_info));
   if (!info) {
     kfree(sb);
-    return KSTATUS_ERR_NO_MEMORY;
+    return -ENOMEM;
   }
     
 
   struct ext2_superblock* super = &info->superblock;
-  kstatus_t status = ext2_read_superblock(bdev, super);
-  if (status != KSTATUS_SUCCESS) {
+  int status = ext2_read_superblock(bdev, super);
+  if (status < 0) {
     kfree(sb);
     kfree(info);
     return status;
   }
 
   status = ext2_fill_bgd_table_info(bdev, info);
-  if (status != KSTATUS_SUCCESS) {
+  if (status < 0) {
     kfree(sb);
     kfree(info);
     return status;
@@ -146,12 +146,12 @@ kstatus_t ext2_mount(struct block_dev* bdev, struct superblock** out_sb) {
   if (!root) {
     kfree(sb);
     kfree(info);
-    return KSTATUS_GENERAL_ERR;
+    return -ENOENT;
   }
 
   sb->root = root;
 
   *out_sb = sb;
 
-  return KSTATUS_SUCCESS;
+  return 0;
 }

@@ -19,7 +19,7 @@ ssize_t ext2_read_file(struct file* file, void* buf, size_t count, uint64_t offs
 
   void* block_buf = kmalloc(block_size);
   if (!block_buf) {
-    return -KSTATUS_ERR_NO_MEMORY;
+    return -ENOMEM;
   }
 
   struct phys_iovec iovec[] = {{.addr = (uint64_t)VIRT_TO_PHYS(block_buf), .length = block_size}};
@@ -38,9 +38,9 @@ ssize_t ext2_read_file(struct file* file, void* buf, size_t count, uint64_t offs
       lba = i_info->singly[block-12] * sectors_per_block;
     }
 
-    if (lba && file->dentry->sb->bdev->read(bdev, lba, sectors_per_block, iovec, 1) != KSTATUS_SUCCESS) {
-      kstatus_t status = file->dentry->sb->bdev->read(bdev, lba, sectors_per_block, iovec, 1);
-      if (status != KSTATUS_SUCCESS) {
+    if (lba && file->dentry->sb->bdev->read(bdev, lba, sectors_per_block, iovec, 1) < 0) {
+      int status = file->dentry->sb->bdev->read(bdev, lba, sectors_per_block, iovec, 1);
+      if (status < 0) {
         kfree(block_buf);
         return -status;
       }

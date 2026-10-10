@@ -17,26 +17,26 @@ void panic(char* s) {
 extern struct dentry* vfs_root;
 void kmain() {
   int res = early_pmm_init(); 
-  if (res != KSTATUS_SUCCESS) {
+  if (res < 0) {
     panic(NULL);
   }
 
   res = vmm_init();
-  if (res != KSTATUS_SUCCESS) {
+  if (res < 0) {
     panic(NULL);
   }
 
   vga_init();
 
   res = pmm_init();
-  if (res != KSTATUS_SUCCESS) {
+  if (res != 0) {
     panic("pmm_init() failed.");
   }
 
   setup_stage2();
 
-  kstatus_t status = ahci_init();
-  if (status != KSTATUS_SUCCESS) {
+  res = ahci_init();
+  if (res < 0) {
     panic("failed to init ACHI.\n");
   }
 
@@ -47,8 +47,8 @@ void kmain() {
     panic("partition_scan failed.\n");
   }
 
-  status = vfs_mount_root();
-  if (status != KSTATUS_SUCCESS) {
+  res = vfs_mount_root();
+  if (res < 0) {
     panic("couldn't mount root,\n");
   }
 

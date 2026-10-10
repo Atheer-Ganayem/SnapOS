@@ -10,7 +10,7 @@ extern size_t clean_count;
 static uint8_t* bitmap;
 static size_t size;
 
-kstatus_t pmm_init() {
+int pmm_init() {
   void* max_paddr = early_pmm_get_max_usable();
   size_t frame_count = PAGE_ALIGN_UP((uintptr_t)max_paddr) / PAGE_SIZE;
   size = (frame_count + 7) / 8;
@@ -19,7 +19,7 @@ kstatus_t pmm_init() {
   
   bitmap = (uint8_t*)early_pmm_alloc_continuous_frames(size_in_frame);
   if (!bitmap) {
-    return KSTATUS_ERR_NO_MEMORY;
+    return -ENOMEM;
   }
   bitmap = PHYS_TO_VIRT(bitmap);
   memset(bitmap, 0xFF, size);
@@ -55,7 +55,7 @@ kstatus_t pmm_init() {
 
   pmm_current_alloc_frame = pmm_alloc_frame;
 
-  return KSTATUS_SUCCESS;
+  return 0;
 }
 
 // return a pointer to the paddr of the frame.

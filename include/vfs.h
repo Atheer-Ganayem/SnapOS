@@ -21,9 +21,11 @@ typedef int (*fs_probe_t)(struct block_dev* bdev, struct fs_probe_info* info);
 // Must check with IS_ERR();
 typedef struct superblock* (*fs_mount_t)(struct block_dev* bdev);
 
+// Looks up child inside dir.
+// If found returns 0, and sets child->inode.
+// Otherwise, returns an err and doesnt attach a thing.
+// The VFS is responisble for attaching the parent to the child.
 typedef int (*inode_lookup_t)(struct inode* dir, struct dentry* child);
-// typedef int (*inode_create_t)(struct inode* dir, struct dentry* child);
-// typedef int (*inode_mkdir_t)(struct inode* dir, struct dentry* child);
 
 struct fs_driver {
   char name[16];

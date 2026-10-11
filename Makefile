@@ -28,6 +28,7 @@ all: build_bootloader bin/kernel.bin
 	sudo dd if=bin/stage2.bin of=$${LOOP_DEV} bs=512 seek=1 conv=notrunc status=none; \
 	sudo mount $${LOOP_DEV}p1 /tmp/snapos_mnt; \
 	sudo cp bin/kernel.bin /tmp/snapos_mnt/; \
+	sudo cp test.txt /tmp/snapos_mnt/; \
 	sudo umount /tmp/snapos_mnt; \
 	sudo losetup -d $${LOOP_DEV}
 	
@@ -55,8 +56,6 @@ qemu:
   -drive id=os_disk,format=raw,file=snapos.img,if=none \
   -device ahci,id=ahci_ctrl \
   -device ide-hd,drive=os_disk,bus=ahci_ctrl.0 \
-	-drive id=test_disk,format=raw,file=test_disk.img,if=none \
-  -device ide-hd,drive=test_disk,bus=ahci_ctrl.1
 
 qemu_gdb:
 	qemu-system-x86_64 -m 512M -drive format=raw,file=snapos.img -serial stdio -d int -no-reboot -s -S

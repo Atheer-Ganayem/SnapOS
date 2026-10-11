@@ -14,7 +14,10 @@ void panic(char* s) {
     __asm__ volatile("cli; hlt");
   };
 }
+
 extern struct dentry* vfs_root;
+bool debug = 0;
+
 void kmain() {
   int res = early_pmm_init(); 
   if (res < 0) {
@@ -56,8 +59,39 @@ void kmain() {
   vga_print_color((char*)((struct ext2_fs_info*)vfs_root->sb->priv_data)->superblock.volume_name, VGA_COLOR_GREEN);
   vga_putchar_color('0' + ((struct ext2_inode_info*)vfs_root->inode->priv_data)->inode->hard_links_count, VGA_COLOR_RED);
   vga_print(")\n");
-  
 
+  res = ext2_lookup(vfs_root->inode, d_alloc(vfs_root, "kernel.bin"));
+  if (res == 0) {
+    vga_print_color("found kernel.bin\n", VGA_COLOR_GREEN);
+  }
+
+  debug = true;
+  struct dentry* test = d_alloc(vfs_root, "test.txt");
+  test->sb = vfs_root->sb;
+  res = ext2_lookup(vfs_root->inode, test);
+  if (res == 0) {
+    vga_print_color("found test.txt\n", VGA_COLOR_GREEN);
+  }
+  
+  struct file f = {
+    .dentry = test,
+  };
+  char* buf = kzalloc(512);
+  if (!buf) {
+    panic("NO mem\n");
+  }
+
+  int n = ext2_read_file(&f, buf, 512, 0);
+  if (n < 0) {
+    panic("err reading\n");
+  } else if (n == 0) {
+    panic("eof\n");
+  } else {
+    vga_print("reading successfull\n");
+  }
+
+  vga_print(buf);
+  
   /*
     - the trick of putting snapos img on a parition doesnt actually work.
     - Bug in kmalloc, check 'TODO' comment there.

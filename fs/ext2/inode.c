@@ -12,6 +12,8 @@ static inline uint64_t ext2_inode_data_size(struct ext2_inode* inode) {
   return ((uint64_t)inode->sizel) | ((uint64_t)inode->sizeu << 32);
 } 
 
+
+
 // Must check with IS_ERR();
 struct inode* ext2_read_inode(struct block_dev* bdev, struct superblock* sb, uint32_t ino) {
   int res = 0;
@@ -47,12 +49,13 @@ struct inode* ext2_read_inode(struct block_dev* bdev, struct superblock* sb, uin
     .length = sb->block_size,
   }};
 
+  
   res = bdev->read(bdev, lba, sb->sectors_per_block, iovec, 1);
   if (res < 0) {
     goto out_err;
   }
 
-  memcpy(ext2_inode, block_buf + (inode_size * index_in_block), inode_size);
+  memcpy(ext2_inode, block_buf + (inode_size * index_in_block), sizeof(struct ext2_inode));
 
   i_info->inode = ext2_inode;
   i_info->size = ext2_inode_data_size(ext2_inode);

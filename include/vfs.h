@@ -6,13 +6,20 @@
 
 #define MAX_FS_DRIVERS 16
 
+#define S_IFMT  0xF000
+#define S_IFREG 0x8000
+#define S_IFDIR 0x4000
+
+#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+
 struct superblock;
 struct fs_probe_info;
 struct dentry;
 struct file;
 struct inode;
 
-typedef ssize_t (*file_read_t)(struct file* file, void* buf, size_t count, uint64_t offset);
+typedef ssize_t (*file_read_t)(struct file* file, void* buf, size_t count, size_t* offset);
 
 typedef int (*fs_probe_t)(struct block_dev* bdev, struct fs_probe_info* info);
 
@@ -26,6 +33,12 @@ typedef struct superblock* (*fs_mount_t)(struct block_dev* bdev);
 // Otherwise, returns an err and doesnt attach a thing.
 // The VFS is responisble for attaching the parent to the child.
 typedef int (*inode_lookup_t)(struct inode* dir, struct dentry* child);
+
+struct qstr {
+  char* str;
+  uint32_t len;
+  uint32_t hash;
+};
 
 struct fs_driver {
   char name[16];
@@ -57,6 +70,7 @@ struct file_operations {
 struct inode {
   uint32_t ino;
   uint64_t size;
+  uint32_t mode;  
   struct superblock* sb;
 
   const struct inode_operations* iops;
@@ -69,12 +83,12 @@ struct inode {
 struct file {
   struct dentry* dentry;
   uint64_t pos;
-  uint32_t flags;
+  uint32_t ref_count;
   const struct file_operations* fops;
 };
 
 struct dentry {
-  char name[256];
+  struct qstr name;
   struct inode* inode;
   struct dentry* parent;
   struct dentry* first_child;
@@ -87,7 +101,14 @@ void vfs_init();
 int vfs_scan_partitions();
 int vfs_mount_root();
 
-struct dentry* d_alloc(struct dentry* parent, const char* name);
+uint32_t vfs_hash_name(const char* str, uint32_t len);
+
+struct dentry* d_alloc(struct dentry* parent, const struct qstr* name);
 void d_add(struct dentry* child, struct inode* inode);
+
+struct file* vfs_open(const char* path);
+struct dentry* vfs_lookup(const char* path);
+
+ssize_t vfs_read(struct file* f, void* buf, size_t count);
 
 #endif

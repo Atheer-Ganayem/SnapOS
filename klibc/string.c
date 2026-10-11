@@ -54,6 +54,14 @@ char* strncpy(char* restrict dest, const char* restrict src, size_t n) {
   return base_dest;
 }
 
+int strcmp(const char* s1, const char* s2) {
+  while (*s1 && (*s1 == *s2)) {
+    s1++; s2++;
+  }
+
+  return *(const unsigned char*)s1 - *(const unsigned char*)s2;
+}
+
 int strncmp(const char* s1, const char* s2, size_t n) {
   for (; n > 0; n--, s1++, s2++) {
     if (*s1 != *s2) {

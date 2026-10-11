@@ -7,10 +7,11 @@
 #include <stdbool.h>
 #include <vfs.h>
 
+#define EXT2_IFMT 0xF000
 #define EXT2_MODE_DIR 0x4000
 #define EXT2_MODE_FILE 0x8000
-#define EXT2_ISDIR(m) (m & EXT2_MODE_DIR)
-#define EXT2_ISREG(m) (m & EXT2_MODE_FILE)
+#define EXT2_ISDIR(m) (((m) & EXT2_IFMT) == EXT2_MODE_DIR)
+#define EXT2_ISREG(m) (((m) & EXT2_IFMT) == EXT2_MODE_FILE)
 
 #define EXT2_SUPERBLOCK_OFFSET 1024
 #define EXT2_SIGNATURE 0xEF53
@@ -146,6 +147,6 @@ struct superblock* ext2_mount(struct block_dev* bdev);
 int ext2_lookup(struct inode* dir, struct dentry* child);
 
 struct inode* ext2_read_inode(struct block_dev* bdev, struct superblock* sb, uint32_t ino);
-ssize_t ext2_read_file(struct file* file, void* buf, size_t count, uint64_t offset);
+ssize_t ext2_read_file(struct file* file, void* buf, size_t count, size_t* offset);
 
 #endif

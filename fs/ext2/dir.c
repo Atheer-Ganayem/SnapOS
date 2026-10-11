@@ -21,7 +21,7 @@ static struct ext2_dir_entry* search_dir_block(void* buf, uint32_t block_size, c
     if (entry->name_len_lower != name_len)
       continue;
 
-    if (strncmp(entry->name, name, name_len) != 0)
+    if (memcmp(entry->name, name, name_len) != 0)
       continue;;
 
     return entry;
@@ -45,7 +45,6 @@ int ext2_lookup(struct inode* dir, struct dentry* child) {
   }};
 
   uint32_t addr = i_info->inode->direct_ptrs[0];
-  uint8_t name_len = strlen(child->name);
   
   struct ext2_dir_entry* entry = NULL;
 
@@ -75,7 +74,7 @@ int ext2_lookup(struct inode* dir, struct dentry* child) {
       return res;
     }
 
-    entry = search_dir_block(buf, block_size, child->name, name_len);
+    entry = search_dir_block(buf, block_size, child->name.str, child->name.len);
     if (IS_ERR(entry)) {
       ext2_free_block(buf, block_size);
       return PTR_ERR(entry);
@@ -97,7 +96,8 @@ int ext2_lookup(struct inode* dir, struct dentry* child) {
     return PTR_ERR(inode);
   }
 
-  child->inode = inode;
+  d_add(child, inode);
+  child->sb = dir->sb;
 
   ext2_free_block(buf, block_size);
   return 0;

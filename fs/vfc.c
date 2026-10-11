@@ -49,18 +49,45 @@ int vfs_mount_root() {
   return -ENOENT;
 }
 
+// DJB2 hashing algorithm.
+uint32_t vfs_hash_name(const char* str, uint32_t len) {
+  uint32_t hash = 5381; 
+  
+  for (uint32_t i = 0; i < len; i++) {
+    hash = ((hash << 5) + hash) + str[i];
+  }
+
+  return hash;
+}
+
 // only copies the name, and sets ->parent to parent.
 // you have to link the parent to the child manually, set sb, siblings, and set inode.
+// doesnt assume `qstr` will survive after function calls.
 // Note: must be checked with IS_ERR().
-struct dentry* d_alloc(struct dentry* parent, const char* name) {
+struct dentry* d_alloc(struct dentry* parent, const struct qstr* qstr) {
   struct dentry* d = kzalloc(sizeof(struct dentry));
   if (!d)
     return ERR_PTR(-ENOMEM);
 
-  strncpy(d->name, name, sizeof(d->name) - 1);
+  d->name.str = kmalloc(qstr->len + 1);
+  if (!d->name.str) {
+    kfree(d);
+    return ERR_PTR(-ENOMEM);
+  }
+
+  memcpy(d->name.str, qstr->str, qstr->len);
+  d->name.str[qstr->len] = '\0';
+  d->name.len = qstr->len;
+  d->name.hash = qstr->hash;
+
   d->parent = parent;
 
   return d;
+}
+
+void d_free(struct dentry* d) {
+  if (d && d->name.str) kfree(d->name.str);
+  if (d) kfree(d);
 }
 
 // links the child to parent, child to siblings, and inode.
@@ -71,4 +98,93 @@ void d_add(struct dentry* child, struct inode* inode) {
     child->next_sibling = child->parent->first_child;
     child->parent->first_child = child;
   }
+}
+
+#include <drivers/vga.h>
+
+struct dentry* vfs_lookup_direct(struct dentry* parent, const struct qstr* name) {
+  struct dentry* cur = parent->first_child;
+
+  while (cur) {
+    if (cur->name.hash == name->hash &&
+        cur->name.len == name->len &&
+        memcmp(cur->name.str, name->str, name->len) == 0)
+          return cur;
+
+    cur = cur->next_sibling;
+  }
+
+  struct dentry* child = d_alloc(parent, name);
+  if (IS_ERR(child)) {
+    return child;
+  }
+
+  int res = parent->inode->iops->lookup(parent->inode, child);
+  if (res < 0) {
+    d_free(child);
+    return ERR_PTR(res);
+  }
+
+  return child;
+}
+
+// @param path: garantueed null terminated string.
+struct dentry* vfs_lookup(const char* path) {
+  struct dentry* cur = vfs_root;
+  
+  while (*path == '/') path++;
+
+  while (*path) {
+    if (!S_ISDIR(cur->inode->mode))
+      return ERR_PTR(-ENOTDIR);
+    
+    const char* delim = path;
+    while (*delim && *delim != '/') delim++;
+
+    struct qstr token = {
+      .str = (char*)path,
+      .len = delim - path,
+      .hash = vfs_hash_name(path, delim - path),
+    };
+
+    struct dentry* child = vfs_lookup_direct(cur, &token);
+    if (IS_ERR(child)) {
+      return child;
+    }
+
+    cur = child;
+    path = delim;
+
+    while (*path == '/') path++;
+  }
+
+  return cur;
+}
+
+struct file* vfs_open(const char* path) {
+  struct dentry* d = vfs_lookup(path);
+  if (IS_ERR(d))
+    return (struct file*)d;
+
+  if (!S_ISREG(d->inode->mode))
+    return ERR_PTR(-ENOTDIR);
+
+  struct file* f = kzalloc(sizeof(struct file));
+  if (!f)
+    return ERR_PTR(-ENOMEM);
+
+  f->dentry = d;
+  // f->flags = later
+  f->ref_count = 1;
+  f->pos = 0;
+  f->fops = d->inode->fops;
+
+  return f;
+}
+
+ssize_t vfs_read(struct file* f, void* buf, size_t count) {
+  if (!S_ISREG(f->dentry->inode->mode))
+    return -EINVAL;
+
+  return f->fops->read(f, buf, count, &f->pos);
 }

@@ -77,6 +77,14 @@ struct inode* ext2_read_inode(struct block_dev* bdev, struct superblock* sb, uin
     inode->iops = NULL;
   }
 
+  if (EXT2_ISREG(ext2_inode->mode)) {
+    inode->mode = S_IFREG;
+  } else if (EXT2_ISDIR(ext2_inode->mode)) {
+    inode->mode = S_IFDIR;
+  } else {
+    panic("ext2_lookup: unsupported type.\n");
+  }
+
   ext2_free_block(block_buf, sb->block_size);
   return inode;
 

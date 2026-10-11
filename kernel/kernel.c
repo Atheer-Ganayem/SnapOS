@@ -60,37 +60,29 @@ void kmain() {
   vga_putchar_color('0' + ((struct ext2_inode_info*)vfs_root->inode->priv_data)->inode->hard_links_count, VGA_COLOR_RED);
   vga_print(")\n");
 
-  res = ext2_lookup(vfs_root->inode, d_alloc(vfs_root, "kernel.bin"));
-  if (res == 0) {
-    vga_print_color("found kernel.bin\n", VGA_COLOR_GREEN);
+  struct file* f = vfs_open("/test.txt");
+  if (IS_ERR(f)) {
+    panic("couldn't open /test.txt");
   }
 
-  debug = true;
-  struct dentry* test = d_alloc(vfs_root, "test.txt");
-  test->sb = vfs_root->sb;
-  res = ext2_lookup(vfs_root->inode, test);
-  if (res == 0) {
-    vga_print_color("found test.txt\n", VGA_COLOR_GREEN);
+  f = vfs_open("/test_dir/level2.txt");
+  if (IS_ERR(f)) {
+    panic("failed to open /test_dir/level2.txt\n");
   }
-  
-  struct file f = {
-    .dentry = test,
-  };
+
   char* buf = kzalloc(512);
   if (!buf) {
-    panic("NO mem\n");
+    panic("couldn't alloc buf\n");
   }
 
-  int n = ext2_read_file(&f, buf, 512, 0);
+  vga_print("trynna read\n");
+  ssize_t n = vfs_read(f, buf, 512);
   if (n < 0) {
-    panic("err reading\n");
-  } else if (n == 0) {
-    panic("eof\n");
-  } else {
-    vga_print("reading successfull\n");
+    panic("readign err\n");
   }
 
   vga_print(buf);
+
   
   /*
     - the trick of putting snapos img on a parition doesnt actually work.

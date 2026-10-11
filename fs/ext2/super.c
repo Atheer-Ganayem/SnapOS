@@ -104,7 +104,13 @@ static struct dentry* ext2_get_root(struct block_dev* bdev, struct superblock* s
   if (!inode)
     return ERR_PTR(-ENOMEM);
 
-  struct dentry* d = d_alloc(NULL, "/");
+  struct qstr root_name = {
+    .str = "/",
+    .len = 1,
+    .hash = vfs_hash_name("/", 1)
+  };
+
+  struct dentry* d = d_alloc(NULL, &root_name);
   if (IS_ERR(d)) {
     kfree(inode);
     return ERR_PTR(-ENOMEM);

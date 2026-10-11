@@ -2,7 +2,6 @@
 #include <string.h>
 #include <fs/ext2.h>
 #include <block.h>
-#include <drivers/vga.h>
 
 struct dentry* vfs_root = NULL;
 
@@ -36,20 +35,13 @@ int vfs_mount_root() {
     for (int i = 0; i < fs_drivers_count; i++) {
       if (fs_drivers[i].probe && fs_drivers[i].mount) {
         struct fs_probe_info info;
-        struct superblock* sb;
-        vga_putchar_color('-', VGA_COLOR_GREEN);
-        vga_print(bdev->name);
-        vga_print(": ");
-        vga_print(fs_drivers[i].name);
         if (fs_drivers[i].probe(bdev, &info) == 0) {
-          vga_print(" probing passed ");
-          if (fs_drivers[i].mount(bdev, &sb) == 0) {
-            vga_print(" mounting passed ");
-            vfs_root = sb->root;
-            return 0;
-          }
+          struct superblock* sb = fs_drivers[i].mount(bdev);
+          if (IS_ERR(sb)) continue;
+
+          vfs_root = sb->root;
+          return 0;
         }
-        vga_print_color("-\n", VGA_COLOR_GREEN);
       }
     }
   }
@@ -57,12 +49,13 @@ int vfs_mount_root() {
   return -ENOENT;
 }
 
-// only copies the name, and add the child to the parent's list.
+// only copies the name, and sets ->parent to parent.
 // you have to link the parent to the child manually, set sb, siblings, and set inode.
+// Note: must be checked with IS_ERR().
 struct dentry* d_alloc(struct dentry* parent, const char* name) {
   struct dentry* d = kzalloc(sizeof(struct dentry));
   if (!d)
-    return NULL;
+    return ERR_PTR(-ENOMEM);
 
   strncpy(d->name, name, sizeof(d->name) - 1);
   d->parent = parent;

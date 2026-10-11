@@ -134,18 +134,18 @@ struct ext2_fs_info {
   struct ext2_blockgroup_desc* bgd_table;
 };
 
-int ext2_probe(struct block_dev* bdev, struct fs_probe_info* info);
+void* ext2_alloc_block(uint32_t block_size);
+void ext2_free_block(void* block, uint32_t block_size);
 
 int ext2_init_singly(struct ext2_inode_info* i_info);
 
-struct inode* ext2_read_inode(struct block_dev* bdev, struct superblock* sb, uint32_t ino);
-
-int ext2_mount(struct block_dev* bdev, struct superblock** out_sb);
+void ext2_register(struct fs_driver* entry);
+int ext2_probe(struct block_dev* bdev, struct fs_probe_info* info);
+struct superblock* ext2_mount(struct block_dev* bdev);
 
 int ext2_lookup(struct inode* dir, struct dentry* child);
 
-void ext2_register(struct fs_driver* entry);
-
+struct inode* ext2_read_inode(struct block_dev* bdev, struct superblock* sb, uint32_t ino);
 ssize_t ext2_read_file(struct file* file, void* buf, size_t count, uint64_t offset);
 
 #endif

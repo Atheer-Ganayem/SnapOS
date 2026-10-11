@@ -15,7 +15,11 @@ struct inode;
 typedef ssize_t (*file_read_t)(struct file* file, void* buf, size_t count, uint64_t offset);
 
 typedef int (*fs_probe_t)(struct block_dev* bdev, struct fs_probe_info* info);
-typedef int (*fs_mount_t)(struct block_dev* bdev, struct superblock** sb);
+
+// Validates that the FS can be mountedm, initializes FS internal data,
+// and returns a pointer is struct superblock.
+// Must check with IS_ERR();
+typedef struct superblock* (*fs_mount_t)(struct block_dev* bdev);
 
 typedef int (*inode_lookup_t)(struct inode* dir, struct dentry* child);
 // typedef int (*inode_create_t)(struct inode* dir, struct dentry* child);

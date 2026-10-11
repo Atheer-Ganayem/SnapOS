@@ -1,6 +1,5 @@
 #include <fs/ext2.h>
 #include <vfs.h>
-#include <mm.h>
 #include <string.h>
 
 
@@ -17,7 +16,7 @@ ssize_t ext2_read_file(struct file* file, void* buf, size_t count, uint64_t offs
   uint32_t end_block = (offset + count + block_size - 1) / block_size;
   uint32_t block_count = end_block - start_block;
 
-  void* block_buf = kmalloc(block_size);
+  void* block_buf = ext2_alloc_block(block_size);
   if (!block_buf) {
     return -ENOMEM;
   }
@@ -41,8 +40,8 @@ ssize_t ext2_read_file(struct file* file, void* buf, size_t count, uint64_t offs
     if (lba && file->dentry->sb->bdev->read(bdev, lba, sectors_per_block, iovec, 1) < 0) {
       int status = file->dentry->sb->bdev->read(bdev, lba, sectors_per_block, iovec, 1);
       if (status < 0) {
-        kfree(block_buf);
-        return -status;
+        ext2_free_block(block_buf, block_size);
+        return status;
       }
     }
 
@@ -65,6 +64,6 @@ ssize_t ext2_read_file(struct file* file, void* buf, size_t count, uint64_t offs
     remaining -= tocopy;
   }
 
-  kfree(block_buf);
+  ext2_free_block(block_buf, block_size);
   return count;
 }

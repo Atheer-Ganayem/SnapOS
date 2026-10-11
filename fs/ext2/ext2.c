@@ -1,6 +1,25 @@
 #include <fs/ext2.h>
 #include <vfs.h>
 #include <string.h>
+#include <mm.h>
+#include <paging.h>
+
+inline void* ext2_alloc_block(uint32_t block_size) {
+  if (block_size == PAGE_SIZE) {
+    return alloc_page();
+  }
+  
+  return kmalloc(block_size);
+}
+
+inline void ext2_free_block(void* block, uint32_t block_size) {
+  if (block_size == PAGE_SIZE) {
+    free_page(block);
+    return;
+  }
+
+  kfree(block);
+}
 
 int ext2_init_singly(struct ext2_inode_info* i_info) {
   if (i_info->singly) {
@@ -8,7 +27,7 @@ int ext2_init_singly(struct ext2_inode_info* i_info) {
   }
 
   uint32_t block_size = i_info->sb->block_size;
-  uint32_t* buf = kmalloc(block_size);
+  uint32_t* buf = ext2_alloc_block(block_size);
   if (!buf) {
     return -ENOMEM;
   }
@@ -17,7 +36,7 @@ int ext2_init_singly(struct ext2_inode_info* i_info) {
   struct phys_iovec iovec[] = {{.addr = (uint64_t)VIRT_TO_PHYS(buf), .length = block_size}};
   int status = i_info->sb->bdev->read(i_info->sb->bdev, lba, i_info->sb->sectors_per_block, iovec, 1);
   if (status < 0) {
-    kfree(buf);
+    ext2_free_block(buf, block_size);
     return status;
   }  
 

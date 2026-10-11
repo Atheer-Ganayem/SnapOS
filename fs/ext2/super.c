@@ -2,6 +2,7 @@
 #include <string.h>
 #include <mm.h>
 #include <vfs.h>
+#include <paging.h>
 
 int ext2_read_superblock(struct block_dev* bdev, struct ext2_superblock* out_sb) {
   uint32_t start_sector = EXT2_SUPERBLOCK_OFFSET / bdev->sector_size;
@@ -40,9 +41,12 @@ int ext2_probe(struct block_dev* bdev, struct fs_probe_info* info) {
     return status;
   }
 
+  uint32_t block_size = 1024 << super->log_block_size;
+
   if (super->ext2_signature != EXT2_SIGNATURE ||
       super->version_major != 1 ||
-      (super->required_features & ~EXT2_FEATURE_REQUIRED_SUPPORTED)) {
+      (super->required_features & ~EXT2_FEATURE_REQUIRED_SUPPORTED) ||
+      PAGE_SIZE < block_size) {
     kfree(super);
     return -EINVAL;
   }
@@ -52,11 +56,12 @@ int ext2_probe(struct block_dev* bdev, struct fs_probe_info* info) {
     info->label[sizeof(info->label)-1] = 0x00;
   }
 
-
   kfree(super);
   return 0;
 };
 
+// Reads the block group descriptor table and assigns the appropriate in 'info'.
+// If fails, it is garantueed that info->bgd_table is NULL.
 static int ext2_fill_bgd_table_info(struct block_dev* bdev, struct ext2_fs_info* info) {
   info->inodes_per_group = info->superblock.inodes_per_blockgroup;
   info->block_per_group = info->superblock.blocks_per_blockgroup;
@@ -93,15 +98,16 @@ static int ext2_fill_bgd_table_info(struct block_dev* bdev, struct ext2_fs_info*
   return 0;
 }
 
+// must be checked with IS_ERR
 static struct dentry* ext2_get_root(struct block_dev* bdev, struct superblock* sb) {
   struct inode* inode = ext2_read_inode(bdev, sb, EXT2_ROOT_DIR_INO);
   if (!inode)
-    return NULL;
+    return ERR_PTR(-ENOMEM);
 
   struct dentry* d = d_alloc(NULL, "/");
-  if (!d) {
+  if (IS_ERR(d)) {
     kfree(inode);
-    return NULL;
+    return ERR_PTR(-ENOMEM);
   }
 
   d->sb = sb;
@@ -110,31 +116,38 @@ static struct dentry* ext2_get_root(struct block_dev* bdev, struct superblock* s
   return d;
 }
 
-int ext2_mount(struct block_dev* bdev, struct superblock** out_sb) {
-  struct superblock* sb = kzalloc(sizeof(struct superblock));
-  if (!sb)
-    return -ENOMEM;
+struct superblock* ext2_mount(struct block_dev* bdev) {
+  void* res = 0;
+  int status = 0;
+  struct superblock* sb = NULL;
+  struct ext2_fs_info* info = NULL;
+  struct ext2_superblock* super = NULL;
+  struct dentry* root = NULL;
+
+  sb = kzalloc(sizeof(struct superblock));
+  if (!sb) {
+    res = ERR_PTR(-ENOMEM);
+    goto exit_err;
+  }
     
-  struct ext2_fs_info* info = kmalloc(sizeof(struct ext2_fs_info));
+  info = kmalloc(sizeof(struct ext2_fs_info));
   if (!info) {
-    kfree(sb);
-    return -ENOMEM;
+    res = ERR_PTR(-ENOMEM);
+    goto exit_err;
   }
     
 
-  struct ext2_superblock* super = &info->superblock;
-  int status = ext2_read_superblock(bdev, super);
+  super = &info->superblock;
+  status = ext2_read_superblock(bdev, super);
   if (status < 0) {
-    kfree(sb);
-    kfree(info);
-    return status;
+    res = ERR_PTR(status);
+    goto exit_err;
   }
 
   status = ext2_fill_bgd_table_info(bdev, info);
   if (status < 0) {
-    kfree(sb);
-    kfree(info);
-    return status;
+    res = ERR_PTR(status);
+    goto exit_err;
   }
 
   sb->bdev = bdev;
@@ -142,16 +155,21 @@ int ext2_mount(struct block_dev* bdev, struct superblock** out_sb) {
   sb->sectors_per_block = sb->block_size / bdev->sector_size;
   sb->priv_data = info;
 
-  struct dentry* root = ext2_get_root(bdev, sb);
-  if (!root) {
-    kfree(sb);
-    kfree(info);
-    return -ENOENT;
+  root = ext2_get_root(bdev, sb);
+  if (IS_ERR(root)) {
+    res = root;
+    goto exit_err;
   }
 
   sb->root = root;
 
-  *out_sb = sb;
+  return sb;
 
-  return 0;
+exit_err:
+  if (sb && sb->root) kfree(sb->root);
+  if (sb) kfree(sb);
+  if (info && info->bgd_table) kfree(info->bgd_table);
+  if (info) kfree(info);
+
+  return res;
 }

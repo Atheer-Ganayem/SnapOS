@@ -65,6 +65,8 @@ void kmain() {
     panic("couldn't open /test.txt");
   }
 
+  vfs_close(f);
+
   f = vfs_open("/test_dir/level2.txt");
   if (IS_ERR(f)) {
     panic("failed to open /test_dir/level2.txt\n");
@@ -76,10 +78,25 @@ void kmain() {
   }
 
   vga_print("trynna read\n");
-  ssize_t n = vfs_read(f, buf, 512);
+
+  ssize_t n = vfs_read(f, buf, 5);
   if (n < 0) {
     panic("readign err\n");
   }
+
+  vga_print(buf);
+  vga_putchar('\n');
+
+  while (n > 0) {
+    n = vfs_read(f, buf, 5);
+    buf[n] = 0x00;
+    vga_print(buf);
+    vga_putchar('\n');
+  }
+
+  vfs_close(f);
+
+  vga_putchar('0' + n);
 
   vga_print(buf);
 

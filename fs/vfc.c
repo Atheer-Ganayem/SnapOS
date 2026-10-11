@@ -100,8 +100,6 @@ void d_add(struct dentry* child, struct inode* inode) {
   }
 }
 
-#include <drivers/vga.h>
-
 struct dentry* vfs_lookup_direct(struct dentry* parent, const struct qstr* name) {
   struct dentry* cur = parent->first_child;
 
@@ -186,5 +184,21 @@ ssize_t vfs_read(struct file* f, void* buf, size_t count) {
   if (!S_ISREG(f->dentry->inode->mode))
     return -EINVAL;
 
+  if (unlikely(f->ref_count == 0))
+    return -EINVAL;
+
   return f->fops->read(f, buf, count, &f->pos);
+}
+
+int vfs_close(struct file* f) {
+  if (!f)
+    return -EINVAL;
+
+  f->ref_count--;
+
+  if (f->ref_count == 0) {
+    kfree(f);
+  }
+
+  return 0;
 }

@@ -172,7 +172,6 @@ struct superblock* ext2_mount(struct block_dev* bdev) {
   return sb;
 
 exit_err:
-  if (sb && sb->root) kfree(sb->root);
   if (sb) kfree(sb);
   if (info && info->bgd_table) kfree(info->bgd_table);
   if (info) kfree(info);

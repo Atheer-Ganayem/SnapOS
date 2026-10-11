@@ -104,11 +104,12 @@ int vfs_mount_root();
 uint32_t vfs_hash_name(const char* str, uint32_t len);
 
 struct dentry* d_alloc(struct dentry* parent, const struct qstr* name);
+void d_free(struct dentry* d);
 void d_add(struct dentry* child, struct inode* inode);
 
-struct file* vfs_open(const char* path);
 struct dentry* vfs_lookup(const char* path);
-
+struct file* vfs_open(const char* path);
 ssize_t vfs_read(struct file* f, void* buf, size_t count);
+int vfs_close(struct file* f);
 
 #endif

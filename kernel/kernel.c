@@ -60,47 +60,29 @@ void kmain() {
   vga_putchar_color('0' + ((struct ext2_inode_info*)vfs_root->inode->priv_data)->inode->hard_links_count, VGA_COLOR_RED);
   vga_print(")\n");
 
-  struct file* f = vfs_open("/test.txt");
-  if (IS_ERR(f)) {
-    panic("couldn't open /test.txt");
-  }
 
-  vfs_close(f);
-
-  f = vfs_open("/test_dir/level2.txt");
+  struct file* f = vfs_open("/test_dir/level2.txt");
   if (IS_ERR(f)) {
     panic("failed to open /test_dir/level2.txt\n");
   }
 
-  char* buf = kzalloc(512);
+  char* buf = kmalloc(512);
   if (!buf) {
     panic("couldn't alloc buf\n");
   }
 
-  vga_print("trynna read\n");
-
-  ssize_t n = vfs_read(f, buf, 5);
+  ssize_t n = vfs_read(f, buf, 512 - 2);
   if (n < 0) {
     panic("readign err\n");
   }
 
+  buf[n] = 0x00;
+
   vga_print(buf);
   vga_putchar('\n');
 
-  while (n > 0) {
-    n = vfs_read(f, buf, 5);
-    buf[n] = 0x00;
-    vga_print(buf);
-    vga_putchar('\n');
-  }
-
   vfs_close(f);
 
-  vga_putchar('0' + n);
-
-  vga_print(buf);
-
-  
   /*
     - the trick of putting snapos img on a parition doesnt actually work.
     - Bug in kmalloc, check 'TODO' comment there.

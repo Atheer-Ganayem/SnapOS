@@ -11,6 +11,6 @@
 #define PAGE_ACCESSED _PAGE_ACCESSED
 #define PAGE_NO_EXECUTE _PAGE_NO_EXECUTE 
 
-#define IS_PAGE_ALIGNED(x) (~(x & (PAGE_SIZE - 1)))
+#define IS_PAGE_ALIGNED(x) (~(((uintptr_t)x) & (PAGE_SIZE - 1)))
 
 #endif

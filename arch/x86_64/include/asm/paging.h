@@ -47,9 +47,9 @@ typedef struct {uint64_t pte;} pte_t;
 typedef struct {
   uint64_t prot_flags;
   bool allow_overwrite;
-} mmu_map_opts_t;
+} pgprot_t;
 
-void mmu_map_range(pgd_t* pgd, uint64_t vaddr, uint64_t paddr, uint64_t len, mmu_map_opts_t opts);
+void mmu_map_range(pgd_t* pgd, uint64_t vaddr, uint64_t paddr, uint64_t len, pgprot_t opts);
 void arch_mmu_unmap(pgd_t* pgd, uint64_t vaddr);
 
 void arch_mmu_switch(void* pgd_phys);

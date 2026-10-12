@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <types.h>
 #include <asm/setup.h>
+#include <asm/paging.h>
 
 extern char _kernel_end;
 
@@ -48,6 +49,9 @@ void* pmm_alloc_frame();
 
 int vmm_init();
 void* ioremap(uint64_t paddr, uint64_t size);
+void vmm_map_page(pgd_t* pgd, void* vaddr, void* paddr, pgprot_t prot);
+int vmm_alloc_page(pgd_t* pgd, void* vaddr, pgprot_t prot);
+int vmm_alloc_range(pgd_t* pgd, void* vaddr, size_t size, pgprot_t prot);
 
 int pmm_init();
 void* pmm_alloc_frame();

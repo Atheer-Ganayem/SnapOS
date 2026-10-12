@@ -88,7 +88,7 @@ void* mmu_walk(pgd_t* pgd, uint64_t vaddr, mmu_level_t level, bool *hit_huge) {
   return &pte_base[PTE_INDEX(vaddr)];
 }
 
-void mmu_map_one(pgd_t* pgd, uint64_t vaddr, uint64_t paddr, page_size_t size, mmu_map_opts_t opts) {
+void mmu_map_one(pgd_t* pgd, uint64_t vaddr, uint64_t paddr, page_size_t size, pgprot_t opts) {
   mmu_level_t level = size == PAGE_1G ? LVL_PUD : size == PAGE_2M ? LVL_PMD : LVL_PTE;
   bool hit_huge;
   void* entry = mmu_walk(pgd, vaddr, level, &hit_huge);
@@ -109,7 +109,7 @@ void mmu_map_one(pgd_t* pgd, uint64_t vaddr, uint64_t paddr, page_size_t size, m
   *(uint64_t*)entry = paddr | _PAGE_PRESENT | opts.prot_flags | ps;
 }
 
-void mmu_map_range(pgd_t* pgd, uint64_t vaddr, uint64_t paddr, uint64_t len, mmu_map_opts_t opts) {
+void mmu_map_range(pgd_t* pgd, uint64_t vaddr, uint64_t paddr, uint64_t len, pgprot_t opts) {
   if (!is_page_aligned(vaddr, PAGE_SIZE) || !is_page_aligned(paddr, PAGE_SIZE)) {
     panic("mmu_map_range: vaddr/paddr not page algined");
   } else if (!is_page_aligned(len, PAGE_SIZE)) {

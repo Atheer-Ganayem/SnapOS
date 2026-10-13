@@ -2,13 +2,6 @@
 
 section .text
 
-global load_idtr
-extern dummy_interrupt_handler
-
-load_idtr:
-  lidt [rdi]
-  ret
-
 %macro int_err 2
   global int%1
   extern %2

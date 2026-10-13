@@ -3,6 +3,7 @@
 #include <string.h>
 #include <drivers/vga.h>
 #include <asm/idt.h>
+#include <asm/special_insns.h>
 
 #define IDT_COUNT 256
 #define EXCEPTION_COUNT 32
@@ -66,7 +67,6 @@ void register_eceptions() {
   register_intrerrupt(33, int33);
 }
 
-extern void load_idtr(struct idtr* idtr);
 void idt_init() {
   memset(idt, 0x00, sizeof(idt));
 

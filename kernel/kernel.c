@@ -4,6 +4,8 @@
 #include <drivers/ahci.h>
 #include <types.h>
 #include <fs/ext2.h>
+#include <sched.h>
+#include <asm/irq.h>
 
 void panic(char* s) {
   if (s) {
@@ -83,13 +85,27 @@ void kmain() {
 
   vfs_close(f);
 
+  create_idle_task();
+  struct task_struct* t1 = task_create_enqueue(0);
+  struct task_struct* t2 = task_create_enqueue(0);
+  struct task_struct* t3 = task_create_enqueue(0);
+  if (IS_ERR(t1) || IS_ERR(t2) || IS_ERR(t3)) {
+    panic("create task err\n");
+  }
+  local_irq_enable();
+  schedule();
+
+  vga_print("back to init process.\n");
+
   /*
+    - Idle task should only run when runqueue is empty.
+    - I should read more about the CPL and the required privlage level.
     - the trick of putting snapos img on a parition doesnt actually work.
     - Bug in kmalloc, check 'TODO' comment there.
     - 'TODO' comments in ahci.
   */
 
   while (1) {
-    __asm__ volatile("cli; hlt");
+    __asm__ volatile("hlt");
   }
 }

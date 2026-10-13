@@ -31,4 +31,7 @@ static inline void io_wait() {
 extern void cli();
 extern void sti();
 
+struct idtr;
+extern void load_idtr(struct idtr* idtr);
+
 #endif

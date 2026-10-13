@@ -15,6 +15,7 @@ global inl
 global sti
 global cli
 global get_current_apic_id
+global load_idtr
 
 read_cr3:
   mov rax, cr3
@@ -58,7 +59,7 @@ load_gdtr:
   mov fs, ax
   mov gs, ax
   
-  mov ax, 0x18
+  mov ax, 0x28
   ltr ax
 
   push 0x08
@@ -101,4 +102,8 @@ cli:
 
 sti:
   sti
+  ret
+
+load_idtr:
+  lidt [rdi]
   ret

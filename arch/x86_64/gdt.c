@@ -50,7 +50,7 @@ struct tss_struct {
 } __attribute__((packed));
 
 struct tss_struct tss = {
-  
+  0
 };
 
 
@@ -58,7 +58,10 @@ struct gdt_entry gdt[] = {
   {0, 0, 0, 0, 0, 0}, // null descriptor
   {0xffff, 0, 0, 0b10011011, 0b10101111, 0}, // kernel code segment
   {0xffff, 0, 0, 0b10010011, 0b11001111, 0}, // kernel data segment
-
+  
+  {0xffff, 0, 0, 0b11110011, 0b11001111, 0}, // user data segment
+  {0xffff, 0, 0, 0b11111011, 0b10101111, 0}, // user code segment
+  
   // TSS
   {0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0}
@@ -66,25 +69,27 @@ struct gdt_entry gdt[] = {
 
 #define KERNEL_CS 0x08
 #define KERNEL_DS 0x10
-#define TSS_SEL   0x18
+#define TSS_SEL   0x28
 
 static void init_tss() {
+  tss.iopb = sizeof(struct tss_struct);
+
   uint64_t base = (uint64_t)&tss;
   uint32_t limit = sizeof(struct tss_struct) - 1;
 
-  gdt[3].limit_low = (uint16_t)(limit & 0xffff);
-  gdt[3].base_low = (uint16_t)(base & 0xffff);
-  gdt[3].base_mid = (uint8_t)((base >> 16) & 0xffff);
-  gdt[3].access_byte = 0x89;
-  gdt[3].limit_high_and_flags = (uint8_t)((limit >> 16) & 0x0F);
-  gdt[3].base_high = (uint8_t)((base >> 24) & 0xFF);
+  gdt[5].limit_low = (uint16_t)(limit & 0xffff);
+  gdt[5].base_low = (uint16_t)(base & 0xffff);
+  gdt[5].base_mid = (uint8_t)((base >> 16) & 0xffff);
+  gdt[5].access_byte = 0x89;
+  gdt[5].limit_high_and_flags = (uint8_t)((limit >> 16) & 0x0F);
+  gdt[5].base_high = (uint8_t)((base >> 24) & 0xFF);
 
-  gdt[4].limit_low = (uint16_t)((base >> 32) & 0xFFFF);
-  gdt[4].base_low = (uint16_t)((base >> 48) & 0xFFFF);
-  gdt[4].base_mid = 0;
-  gdt[4].access_byte = 0;
-  gdt[4].limit_high_and_flags = 0;
-  gdt[4].base_high = 0;
+  gdt[6].limit_low = (uint16_t)((base >> 32) & 0xFFFF);
+  gdt[6].base_low = (uint16_t)((base >> 48) & 0xFFFF);
+  gdt[6].base_mid = 0;
+  gdt[6].access_byte = 0;
+  gdt[6].limit_high_and_flags = 0;
+  gdt[6].base_high = 0;
 }
 
 extern void load_gdtr(struct gdtr* gdtr_ptr);
@@ -98,4 +103,9 @@ void gdt_init() {
   };
 
   load_gdtr(&gdtr_ptr);
+}
+
+void tss_set_rsp0(void* addr) {
+  tss.rsp0_low = (uint32_t)((uint64_t)addr);
+  tss.rsp0_high = (uint32_t)(((uint64_t)addr) >> 32);
 }

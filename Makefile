@@ -7,7 +7,7 @@ ASMFLAGS = -f elf64
 
 CORE_SRC := $(wildcard kernel/*.c mm/*.c fs/*.c fs/*/*.c drivers/*/*.c klibc/*.c block/*.c)
 ARCH_C_SRC := $(wildcard arch/$(ARCH)/*.c arch/$(ARCH)/kernel/*.c arch/$(ARCH)/mm/*.c arch/$(ARCH)/idt/*.c arch/$(ARCH)/apic/*.c arch/$(ARCH)/acpi/*.c arch/$(ARCH)/drivers/ps2/*.c)
-ARCH_S_SRC := $(wildcard arch/$(ARCH)/kernel/*.asm arch/$(ARCH)/idt/*.asm)
+ARCH_S_SRC := $(wildcard arch/$(ARCH)/*asm arch/$(ARCH)/kernel/*.asm arch/$(ARCH)/idt/*.asm)
 
 ALL_C_SRC := $(CORE_SRC) $(ARCH_C_SRC)
 ALL_S_SRC := $(ARCH_S_SRC)

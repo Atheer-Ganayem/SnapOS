@@ -4,6 +4,14 @@ section .text
 
 global ret_from_fork
 ret_from_fork:
+  test r12, r12 ; do we have a function pointer ?
+  jz .ireturn   ; no ? just iretq
+
+  mov rdi, r13  ; this hold void* arg
+  call r12
+
+
+.ireturn
   pop r15
   pop r14
   pop r13

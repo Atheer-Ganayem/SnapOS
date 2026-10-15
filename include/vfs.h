@@ -13,6 +13,10 @@
 #define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
 #define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+
 struct superblock;
 struct fs_probe_info;
 struct dentry;
@@ -111,5 +115,6 @@ struct dentry* vfs_lookup(const char* path);
 struct file* vfs_open(const char* path);
 ssize_t vfs_read(struct file* f, void* buf, size_t count);
 int vfs_close(struct file* f);
+ssize_t vfs_seek(struct file* f, ssize_t offset ,int whence);
 
 #endif

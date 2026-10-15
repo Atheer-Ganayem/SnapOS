@@ -202,3 +202,36 @@ int vfs_close(struct file* f) {
 
   return 0;
 }
+
+ssize_t vfs_seek(struct file* f, ssize_t offset ,int whence) {
+  if (!S_ISREG(f->dentry->inode->mode))
+    return -EINVAL;
+
+  ssize_t new_pos;
+
+  switch (whence) {
+  case SEEK_SET:
+    new_pos = offset;
+    break;
+
+  case SEEK_CUR:
+    new_pos = f->pos + offset;
+    break;
+
+  case SEEK_END:
+    // Currently now supported
+    return -EINVAL;
+  
+  default:
+    return -EINVAL;
+  }
+
+  if (new_pos < 0)
+    return -EINVAL;
+
+  new_pos = new_pos > (ssize_t)f->dentry->inode->size ? (ssize_t)f->dentry->inode->size : new_pos;
+
+  f->pos = new_pos;
+
+  return new_pos;
+}

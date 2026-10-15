@@ -20,8 +20,8 @@ int vmm_init() {
 
   kernel_pgd = (pgd_t*)PHYS_TO_VIRT((uint64_t)pgd_raw);
 
-  pgprot_t direct_prot = { .prot_flags = PAGE_RW | PAGE_NO_EXECUTE, .allow_overwrite = false };
-  pgprot_t kernel_prot     = { .prot_flags = PAGE_RW , .allow_overwrite = true };
+  pgprot_t direct_prot = { .prot_flags = PAGE_RW | PAGE_NO_EXECUTE | PAGE_USER, .allow_overwrite = false };
+  pgprot_t kernel_prot     = { .prot_flags = PAGE_RW | PAGE_USER, .allow_overwrite = true };
 
   for (size_t i = 0; i < clean_count; i++) {
     if (clean[i].type != PHYS_REGION_USABLE) continue;
@@ -79,12 +79,13 @@ int vmm_alloc_page(pgd_t* pgd, void* vaddr, pgprot_t prot) {
   return 0;
 }
 
-int vmm_alloc_range(pgd_t* pgd, void* vaddr, size_t size, pgprot_t prot) {
+ssize_t vmm_alloc_range(pgd_t* pgd, void* vaddr, size_t size, pgprot_t prot) {
   if (unlikely(!(IS_PAGE_ALIGNED(vaddr)))) {
     panic("vmm_alloc_page: vaddr is not page algined");
   }
 
   size = PAGE_ALIGN_UP(size);
+  ssize_t count = 0;
 
   while (size) {
     int res = vmm_alloc_page(pgd, vaddr, prot);
@@ -94,7 +95,21 @@ int vmm_alloc_range(pgd_t* pgd, void* vaddr, size_t size, pgprot_t prot) {
 
     size -= PAGE_SIZE;
     vaddr += PAGE_SIZE;
+    count++;
   }
 
-  return 0;
+  return count;
+}
+
+pgd_t* vmm_get_kpgd() {
+  return kernel_pgd;
+}
+
+pgd_t* vmm_copy_kpgtbl() {
+  pgd_t* pgd = alloc_page();
+  if (!pgd) {
+    return ERR_PTR(-ENOMEM);
+  }
+
+  return memcpy(pgd, kernel_pgd, PAGE_SIZE);
 }

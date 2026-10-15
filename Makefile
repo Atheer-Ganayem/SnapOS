@@ -30,6 +30,7 @@ all: build_bootloader bin/kernel.bin
 	sudo cp bin/kernel.bin /tmp/snapos_mnt/; \
 	sudo cp test.txt /tmp/snapos_mnt/; \
 	sudo cp -r test_dir /tmp/snapos_mnt/; \
+	sudo cp -r init /tmp/snapos_mnt/; \
 	sync; \
 	sudo umount -l /tmp/snapos_mnt; \
 	sudo losetup -d $${LOOP_DEV}

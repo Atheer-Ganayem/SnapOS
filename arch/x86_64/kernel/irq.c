@@ -15,7 +15,7 @@ void timer_irq(struct interrupt_frame* frame, uint64_t int_no, uint64_t err_code
 
   struct task_struct* cur = sched_current();
 
-  int color = cur->pid == 0 ? VGA_COLOR_GREEN : cur->pid == 1 ? VGA_COLOR_RED : VGA_COLOR_MAGENTA;
+  int color = frame->cs == 0x23 ? VGA_COLOR_GREEN : frame->cs == 0x08 ? VGA_COLOR_MAGENTA : VGA_COLOR_RED;
   vga_putchar_color('0' + cur->pid, color);
 
   apic_eoi();

@@ -34,6 +34,8 @@ struct task_context {
 struct task_struct;
 
 void arch_init_context(struct task_struct* t, void* entry_point);
+void arch_init_kthread_context(struct task_struct* t, void (*fn)(void*), void* arg);
+void arch_update_init_task_context(struct task_struct* t, void* entry_point);
 void arch_switch_to(struct task_struct* prev, struct task_struct* next);
 
 #endif

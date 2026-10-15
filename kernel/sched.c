@@ -9,11 +9,22 @@ static struct task_struct* head = NULL;
 static struct task_struct* tail = NULL;
 static struct task_struct* current_task = NULL;
 
+extern pgd_t* kernel_pgd;
+
 void create_idle_task() {
   idle_task = kzalloc(sizeof(struct task_struct));
   if (!idle_task) {
     panic("create_idle_task: couldn't create the idle task.\n");
   }
+  
+  idle_task->mm = kmalloc(sizeof(struct mm_struct));
+  if (!idle_task->mm) {
+    panic("NONONO");
+  }
+
+  idle_task->mm->allocs_head = NULL;
+  idle_task->mm->pgd = kernel_pgd;
+  idle_task->mm->ref_count = 1;
   
   idle_task->pid = 0;
   idle_task->state = TASK_RUNNING;

@@ -51,7 +51,7 @@ int vmm_init();
 void* ioremap(uint64_t paddr, uint64_t size);
 void vmm_map_page(pgd_t* pgd, void* vaddr, void* paddr, pgprot_t prot);
 int vmm_alloc_page(pgd_t* pgd, void* vaddr, pgprot_t prot);
-int vmm_alloc_range(pgd_t* pgd, void* vaddr, size_t size, pgprot_t prot);
+ssize_t vmm_alloc_range(pgd_t* pgd, void* vaddr, size_t size, pgprot_t prot);
 
 int pmm_init();
 void* pmm_alloc_frame();
@@ -66,5 +66,8 @@ void* alloc_page();
 void* alloc_pages(size_t count);
 void free_page(void* vaddr);
 void free_pages(void* vaddr, size_t count);
+
+pgd_t* vmm_get_kpgd();
+pgd_t* vmm_copy_kpgtbl();
 
 #endif

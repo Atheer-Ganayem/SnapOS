@@ -85,20 +85,27 @@ void kmain() {
 
   vfs_close(f);
 
+  kmm_init();
   create_idle_task();
-  struct task_struct* t1 = task_create_enqueue(0);
-  struct task_struct* t2 = task_create_enqueue(0);
-  struct task_struct* t3 = task_create_enqueue(0);
-  if (IS_ERR(t1) || IS_ERR(t2) || IS_ERR(t3)) {
-    panic("create task err\n");
+
+  res = kthread_run(init_task_init, "/init");
+  if (res < 0) {
+    panic("kthread run err\n");
   }
+
+  // struct task_struct* t1 = task_create_enqueue(0, 0);
+  // struct task_struct* t2 = task_create_enqueue(0, 0);
+  // if (IS_ERR(t1) || IS_ERR(t2)) {
+  //   panic("create task err\n");
+  // }
+
   local_irq_enable();
   schedule();
 
-  vga_print("back to init process.\n");
 
   /*
     - Idle task should only run when runqueue is empty.
+    - some inconsitincies (idk the spelling) in ssize_t and size_t in vfs functions and INODE struct.
     - I should read more about the CPL and the required privlage level.
     - the trick of putting snapos img on a parition doesnt actually work.
     - Bug in kmalloc, check 'TODO' comment there.

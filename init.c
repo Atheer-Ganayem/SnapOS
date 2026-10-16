@@ -2,7 +2,23 @@
 
 void _start() {
   volatile uint64_t counter = 0;
-  while (counter < 1500000000LL) {
+
+
+  long ret;
+  __asm__ __volatile__(
+    "syscall"
+    : "=a" (ret)          // Output: RAX goes into 'ret'
+    : "a" (0)             // Input: RAX = 0 (your syscall number)
+    : "rcx", "r11", "memory" // Clobbers: Hardware overwrites RCX and R11
+  );
+
+  __asm__ volatile("" ::: "memory");
+
+  if (ret == 5) {
+      __asm__ __volatile__("cli");
+  }
+
+  while (counter < 500000000LL) {
     counter++;
   }
 

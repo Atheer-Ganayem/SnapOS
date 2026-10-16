@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <types.h>
 #include <mm.h>
+#include <cpu.h>
 
 static struct task_struct* idle_task = NULL; 
 
@@ -69,6 +70,9 @@ void schedule() {
   if (unlikely(!next)) {
     panic("schedule: runque empty.");
   }
+
+  cpu0_data.current = next;
+  cpu0_data.kernel_stack = next->kernel_stack;
 
   arch_switch_to(current, next);
 } 

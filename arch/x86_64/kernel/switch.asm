@@ -29,6 +29,13 @@ ret_from_fork:
   pop rax
 
   add rsp, 8
+
+  ; ; test CS CPL, if not zero zero (CPL != 0, meaning we are returning to user space) then swapgs.
+  test qword [rsp + 8], 3
+  jz .done
+  swapgs
+
+.done:
   iretq
 
 

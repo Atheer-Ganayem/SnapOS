@@ -40,6 +40,19 @@ struct phys_iovec {
   uint64_t length;
 };
 
+struct mm_allocation {
+  void* addr;
+  uint64_t page_count;
+  struct mm_allocation* next;
+};
+
+struct mm_struct {
+  pgd_t* pgd;
+  void* user_stack;
+  struct mm_allocation* allocs_head;
+  uint32_t ref_count;
+};
+
 int early_pmm_init();
 void* early_pmm_alloc_frame();
 void* early_pmm_alloc_continuous_frames(size_t count);
@@ -52,6 +65,8 @@ void* ioremap(uint64_t paddr, uint64_t size);
 void vmm_map_page(pgd_t* pgd, void* vaddr, void* paddr, pgprot_t prot);
 int vmm_alloc_page(pgd_t* pgd, void* vaddr, pgprot_t prot);
 ssize_t vmm_alloc_range(pgd_t* pgd, void* vaddr, size_t size, pgprot_t prot);
+pgd_t* vmm_get_kpgd();
+pgd_t* vmm_copy_kpgtbl();
 
 int pmm_init();
 void* pmm_alloc_frame();
@@ -67,7 +82,9 @@ void* alloc_pages(size_t count);
 void free_page(void* vaddr);
 void free_pages(void* vaddr, size_t count);
 
-pgd_t* vmm_get_kpgd();
-pgd_t* vmm_copy_kpgtbl();
+struct mm_struct* mm_create();
+int mm_add_alloc(struct mm_struct* mm, void* addr, uint64_t page_count);
+int mm_alloc_main_stack(struct mm_struct* mm);
+void mm_put(struct mm_struct* mm);
 
 #endif

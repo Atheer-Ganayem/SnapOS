@@ -20,8 +20,8 @@ int vmm_init() {
 
   kernel_pgd = (pgd_t*)PHYS_TO_VIRT((uint64_t)pgd_raw);
 
-  pgprot_t direct_prot = { .prot_flags = PAGE_RW | PAGE_NO_EXECUTE | PAGE_USER, .allow_overwrite = false };
-  pgprot_t kernel_prot     = { .prot_flags = PAGE_RW | PAGE_USER, .allow_overwrite = true };
+  pgprot_t direct_prot = { .prot_flags = PAGE_RW | PAGE_NO_EXECUTE, .allow_overwrite = false };
+  pgprot_t kernel_prot     = { .prot_flags = PAGE_RW , .allow_overwrite = true };
 
   for (size_t i = 0; i < clean_count; i++) {
     if (clean[i].type != PHYS_REGION_USABLE) continue;

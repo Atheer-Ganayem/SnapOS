@@ -8,14 +8,6 @@
 
 #include <drivers/vga.h>
 
-
-static void dummy() {
-  uint64_t x = 1;
-  while (x) {
-    x++;
-  }
-}
-
 void kthread_exit() {
   vga_print(" kthread exit called ");
   uint64_t x = 1;
@@ -69,11 +61,11 @@ void arch_init_context(struct task_struct* t, void* entry_point) {
   struct interrupt_frame* iframe = (struct interrupt_frame*)iret_addr;
   
   memset(iframe, 0, sizeof(struct interrupt_frame));
-  iframe->rip = (uint64_t)dummy; // i know in know i will change it later to entry_point dont cry
+  iframe->rip = (uint64_t)entry_point;
   iframe->cs = 0x20 + 3; 
   iframe->ss = 0x18 + 3;
   iframe->rflags = 0x202;
-  iframe->rsp = (uint64_t)TASK_USER_STACK_TOP_ADDR;
+  iframe->rsp = (uint64_t)(TASK_USER_STACK_TOP_ADDR - 8);
 
   uint64_t switch_addr = iret_addr - sizeof(struct switch_frame);
   struct switch_frame* sframe = (struct switch_frame*)switch_addr;
@@ -98,7 +90,7 @@ void arch_switch_to(struct task_struct* prev, struct task_struct* next) {
     tss_set_rsp0((void*)stack_top);
   }
 
-  if (next->mm != prev->mm) {
+  if (next->mm && next->mm != prev->mm) {
     switch_cr3((uint64_t)VIRT_TO_PHYS(next->mm->pgd));
   }
 
@@ -115,5 +107,9 @@ void arch_update_init_task_context(struct task_struct* t, void* entry_point) {
   iframe->cs = 0x20 + 3; 
   iframe->ss = 0x18 + 3;
   iframe->rflags = 0x202;
-  iframe->rsp = (uint64_t)TASK_USER_STACK_TOP_ADDR;
+  iframe->rsp = (uint64_t)(TASK_USER_STACK_TOP_ADDR - 8);
+}
+
+void arch_activate_mm(struct mm_struct* mm) {
+  switch_cr3((uint64_t)VIRT_TO_PHYS(mm->pgd));
 }

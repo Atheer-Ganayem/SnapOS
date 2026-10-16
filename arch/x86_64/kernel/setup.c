@@ -79,6 +79,24 @@ void init() {
   idt_init();
 }
 
+#include <cpu.h>
+
+#define IA32_GS_BASE        0xC0000101
+#define IA32_KERNEL_GS_BASE 0xC0000102
+
 void setup_stage2() {
   init_apic();
+  syscall_init(syscall_entry);
+
+  // We are in Ring 0. Set the active GS base to our kernel struct.
+  uint64_t gs_ptr = (uint64_t)&cpu0_data;
+  
+  // Write the lower 32 bits and upper 32 bits to the active GS Base
+  uint32_t low = (uint32_t)gs_ptr;
+  uint32_t high = (uint32_t)(gs_ptr >> 32);
+  __asm__ __volatile__("wrmsr" : : "c"(IA32_GS_BASE), "a"(low), "d"(high));
+  
+  // Optional but good practice: explicitly zero out the KernelGSBase MSR 
+  // so user space starts with a clean slate.
+  __asm__ __volatile__("wrmsr" : : "c"(IA32_KERNEL_GS_BASE), "a"(0), "d"(0));
 }

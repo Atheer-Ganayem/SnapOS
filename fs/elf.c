@@ -48,7 +48,7 @@ static int load_program_header(struct task_struct* t, struct file* f, struct elf
     memset((void*)(phdr->vaddr + phdr->file_size), 0x00, phdr->mem_size - phdr->file_size);
   }
 
-  task_mm_add(t->mm, (void*)PAGE_ALIGN_DOWN(phdr->vaddr), page_count);
+  mm_add_alloc(t->mm, (void*)PAGE_ALIGN_DOWN(phdr->vaddr), page_count);
 
   return 0;
 }
@@ -98,7 +98,6 @@ void* elf_load(const char* path, struct task_struct* t) {
     if (res < 0) {
       vfs_close(f);
       kfree(phdr_base);
-      task_mm_destory(t->mm);
       return ERR_PTR(res);
     }
   }

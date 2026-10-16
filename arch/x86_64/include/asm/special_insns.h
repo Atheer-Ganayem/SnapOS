@@ -34,4 +34,7 @@ extern void sti();
 struct idtr;
 extern void load_idtr(struct idtr* idtr);
 
+void syscall_init(void* sycall_entry_addr);
+void syscall_entry();
+
 #endif

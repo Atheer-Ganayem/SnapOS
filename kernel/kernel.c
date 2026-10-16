@@ -7,6 +7,8 @@
 #include <sched.h>
 #include <asm/irq.h>
 
+#include <cpu.h>
+
 void panic(char* s) {
   if (s) {
     vga_print_color(s, VGA_COLOR_RED);
@@ -18,7 +20,13 @@ void panic(char* s) {
 }
 
 extern struct dentry* vfs_root;
-bool debug = 0;
+
+struct cpu_local_data cpu0_data = {.stack_size = TASK_KERNEL_STACK_SIZE};
+
+uint64_t dummy_syscall() {
+  vga_print("dummy syscall");
+  return 5;
+}
 
 void kmain() {
   int res = early_pmm_init(); 
@@ -85,7 +93,6 @@ void kmain() {
 
   vfs_close(f);
 
-  kmm_init();
   create_idle_task();
 
   res = kthread_run(init_task_init, "/init");
@@ -93,11 +100,7 @@ void kmain() {
     panic("kthread run err\n");
   }
 
-  // struct task_struct* t1 = task_create_enqueue(0, 0);
-  // struct task_struct* t2 = task_create_enqueue(0, 0);
-  // if (IS_ERR(t1) || IS_ERR(t2)) {
-  //   panic("create task err\n");
-  // }
+  syscall_registers(dummy_syscall);
 
   local_irq_enable();
   schedule();

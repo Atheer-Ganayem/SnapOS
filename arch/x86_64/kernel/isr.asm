@@ -7,6 +7,13 @@ section .text
   extern %2
   int%1:
   
+  ; test CS CPL, if not zero zero (CPL != 0, meaning we are returning to user space) then swapgs.
+  test qword [rsp + 16], 3
+  jz .skip_swapgs_%1
+  swapgs
+  
+.skip_swapgs_%1:
+
   push rax
   push rbx
   push rcx
@@ -46,6 +53,13 @@ section .text
   pop rax
 
   add rsp, 8
+
+  ; test CS CPL, if not zero zero (CPL != 0, meaning we are returning to user space) then swapgs.
+  test qword [rsp + 8], 3
+  jz .done_%1
+  swapgs
+
+.done_%1:
   iretq
 %endmacro
 
@@ -55,7 +69,14 @@ section .text
   int%1:
 
   push qword 0
+
+  ; test CS CPL, if not zero zero (CPL != 0, meaning we are returning to user space) then swapgs.
+  test qword [rsp + 16], 3
+  jz .skip_swapgs_%1
+  swapgs
   
+.skip_swapgs_%1:
+
   push rax
   push rbx
   push rcx
@@ -95,6 +116,13 @@ section .text
   pop rax
 
   add rsp, 8
+
+  ; test CS CPL, if not zero zero (CPL != 0, meaning we are returning to user space) then swapgs.
+  test qword [rsp + 8], 3
+  jz .done_%1
+  swapgs
+
+.done_%1:
   iretq
 %endmacro
 

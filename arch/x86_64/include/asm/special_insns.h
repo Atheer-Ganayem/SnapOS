@@ -35,6 +35,7 @@ struct idtr;
 extern void load_idtr(struct idtr* idtr);
 
 void syscall_init(void* sycall_entry_addr);
-void syscall_entry();
+
+void write_gs(uint64_t data);
 
 #endif

@@ -48,50 +48,6 @@ int kthread_run(void (*fn)(void*), void* arg) {
   return 0;
 }
 
-// struct task_struct* task_create(void* entry_point, struct mm_struct* mm) {
-//   struct task_struct* t = kzalloc(sizeof(struct task_struct));
-//   if (!t) 
-//     return ERR_PTR(-ENOMEM);
-  
-//   // t->mm = task_mm_init(mm);
-//   // if (IS_ERR(t->mm)) {
-//   //   kfree(t);
-//   //   return (struct task_struct*)t->mm;
-//   // }
-
-//   t->pid = get_next_pid();
-
-//   t->kernel_stack = alloc_pages(TASK_KERNEL_STACK_PAGE_COUNT);
-//   if (!t->kernel_stack) {
-//     kfree(t);
-//     kfree(t->mm);
-//     return ERR_PTR(-ENOMEM);
-//   }
-
-//   if (mm_alloc_main_stack(t->mm) < 0) {
-//     kfree(t);
-//     kfree(t->mm);
-//     kfree(t->kernel_stack);
-//     return ERR_PTR(-ENOMEM);
-//   }
-
-//   t->state = TASK_RUNNING;
-
-//   arch_init_context(t, entry_point);
-
-//   return t;
-// }
-
-// struct task_struct* task_create_enqueue(void* entry_point, struct mm_struct* mm) {
-//   struct task_struct* t = task_create(entry_point, mm);
-//   if (IS_ERR(t))
-//     return t;
-
-//   sched_enqueue(t);
-
-//   return t;
-// }
-
 void task_set_state(struct task_struct* task, int state) {
   task->state = state;
 }

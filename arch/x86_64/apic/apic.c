@@ -76,11 +76,24 @@ void apic_route_irq(uint8_t irq, uint8_t vector) {
 }
 
 void lapic_timer_init(uint8_t vector) {
+  lapic->div_config_reg = 0x03; // div 16
+
+  // on shot mode + masking the interrupt
+  lapic->lvt_timer_reg = 0x10000;
+  lapic->init_count_reg = 0xFFFFFFFF;
+
+  pit_sleep_10ms();
+
+  uint32_t current_count = lapic->current_count_reg;
+  
+  // stop the timer
+  lapic->init_count_reg = 0;
+  
+  uint32_t ticks_in_10ms = 0xFFFFFFFF - current_count;
+
   lapic->div_config_reg = 0x03;
-
   lapic->lvt_timer_reg = 0x20000 | vector;
-
-  lapic->init_count_reg = 10000000; 
+  lapic->init_count_reg = ticks_in_10ms; 
 }
 
 void init_apic() {

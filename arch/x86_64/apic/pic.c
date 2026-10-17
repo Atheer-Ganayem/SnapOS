@@ -21,6 +21,9 @@
 #define RSDP_REGION_END   0xFFFFF
 #define RSDP_REV1_SIZE    20
 
+#define PIT_CH0_PORT 0x40
+#define PIT_CMD_PORT 0x43
+
 void picEIO(uint8_t irq) {
   if (irq >= 8) {
     outb(PIC2_COMMAND, PIC_EOI);
@@ -62,4 +65,30 @@ void disable_pic() {
 void enable_pic() {
   outb(PIC1_DATA, 0);
   outb(PIC2_DATA, 0);
+}
+
+void pit_sleep(uint16_t count) {
+  // 0011 0000
+  // 00: channel 0
+  // 11: access mode: low byte, high byte
+  // 000: interrupt on terminal count
+  // 0: 16 bit
+  outb(PIT_CMD_PORT, 0x30);
+
+  outb(PIT_CH0_PORT, (uint8_t)count);
+  outb(PIT_CH0_PORT, (uint8_t)(count >> 8));
+
+  uint16_t current_count;
+
+  do {
+    outb(PIT_CMD_PORT, 0x00);
+    uint8_t low = inb(PIT_CH0_PORT);
+    uint8_t high = inb(PIT_CH0_PORT);
+
+    current_count = (high << 8) | low;
+  } while (current_count > 0);
+}
+
+void pit_sleep_10ms() {
+  pit_sleep(11932);
 }

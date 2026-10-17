@@ -16,6 +16,7 @@ global sti
 global cli
 global get_current_apic_id
 global load_idtr
+global write_gs
 
 read_cr3:
   mov rax, cr3
@@ -106,4 +107,21 @@ sti:
 
 load_idtr:
   lidt [rdi]
+  ret
+
+
+; void write_gs(uint64_t data)
+write_gs:
+  ; the current GS is the kernel one.
+  mov eax, edi
+  shr rdi, 32
+  mov edx, edi 
+  mov ecx, 0xC0000101 ; IA32_GS_BASE
+  wrmsr
+
+  ; zero out the user GS.
+  xor eax, eax
+  xor edx, edx
+  mov ecx, 0xC0000102 ; IA32_KERNEL_GS_BASE
+  wrmsr
   ret

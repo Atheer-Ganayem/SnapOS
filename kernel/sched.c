@@ -20,7 +20,7 @@ void create_idle_task() {
   
   idle_task->mm = kmalloc(sizeof(struct mm_struct));
   if (!idle_task->mm) {
-    panic("NONONO");
+    panic("create_idle_task: couldn't alloc mm.");
   }
 
   idle_task->mm->allocs_head = NULL;
@@ -30,12 +30,16 @@ void create_idle_task() {
   idle_task->pid = 0;
   idle_task->state = TASK_RUNNING;
 
-  head = idle_task;
-  tail = idle_task;
   current_task = idle_task;
 }
 
 void sched_enqueue(struct task_struct* t) {
+  if (!head) {
+    head = t;
+    tail = t;
+    return;
+  }
+
   tail->next = t;
   t->next = NULL;
   tail = t;
@@ -46,7 +50,11 @@ struct task_struct* sched_current() {
 }
 
 struct task_struct* sched_next() {
-  if (!current_task) {
+  if (!head) {
+    current_task = idle_task;
+    return idle_task;
+  } else if (current_task == idle_task) {
+    current_task = head;
     return head;
   }
 

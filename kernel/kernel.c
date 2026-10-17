@@ -23,35 +23,38 @@ extern struct dentry* vfs_root;
 
 struct cpu_local_data cpu0_data = {.stack_size = TASK_KERNEL_STACK_SIZE};
 
-uint64_t dummy_syscall() {
-  vga_print("dummy syscall");
-  return 5;
-}
-
 void kmain() {
   int res = early_pmm_init(); 
   if (res < 0) {
     panic(NULL);
   }
-
+  
   res = vmm_init();
   if (res < 0) {
     panic(NULL);
   }
 
   vga_init();
+  vga_print("vga_init ");
+
 
   res = pmm_init();
   if (res != 0) {
     panic("pmm_init() failed.");
   }
 
+  vga_print("pmm_init ");
+
   setup_stage2();
+
+  vga_print("stage2_init ");
 
   res = ahci_init();
   if (res < 0) {
     panic("failed to init ACHI.\n");
   }
+
+  vga_print("ahci_init ");
 
 
   vfs_init();
@@ -59,6 +62,8 @@ void kmain() {
   if (res < 0) {
     panic("partition_scan failed.\n");
   }
+
+  vga_print("vfs_init ");
 
   res = vfs_mount_root();
   if (res < 0) {
@@ -100,17 +105,13 @@ void kmain() {
     panic("kthread run err\n");
   }
 
-  syscall_registers(dummy_syscall);
-
   local_irq_enable();
   schedule();
 
 
   /*
-    - Idle task should only run when runqueue is empty.
+    - protection against passing syscall number out of range.
     - some inconsitincies (idk the spelling) in ssize_t and size_t in vfs functions and INODE struct.
-    - I should read more about the CPL and the required privlage level.
-    - the trick of putting snapos img on a parition doesnt actually work.
     - Bug in kmalloc, check 'TODO' comment there.
     - 'TODO' comments in ahci.
   */

@@ -11,6 +11,4 @@ static inline void local_irq_enable() {
   sti();
 }
 
-void syscall_registers(void* fn);
-
 #endif

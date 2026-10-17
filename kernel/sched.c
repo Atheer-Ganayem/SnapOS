@@ -3,6 +3,7 @@
 #include <types.h>
 #include <mm.h>
 #include <cpu.h>
+#include <asm/irq.h>
 
 static struct task_struct* idle_task = NULL; 
 
@@ -20,7 +21,7 @@ void create_idle_task() {
   
   idle_task->mm = kmalloc(sizeof(struct mm_struct));
   if (!idle_task->mm) {
-    panic("create_idle_task: couldn't alloc mm.");
+    panic("NONONO");
   }
 
   idle_task->mm->allocs_head = NULL;
@@ -30,16 +31,14 @@ void create_idle_task() {
   idle_task->pid = 0;
   idle_task->state = TASK_RUNNING;
 
+  head = idle_task;
+  tail = idle_task;
   current_task = idle_task;
+
+  cpu0_data.current = idle_task;
 }
 
 void sched_enqueue(struct task_struct* t) {
-  if (!head) {
-    head = t;
-    tail = t;
-    return;
-  }
-
   tail->next = t;
   t->next = NULL;
   tail = t;
@@ -50,11 +49,7 @@ struct task_struct* sched_current() {
 }
 
 struct task_struct* sched_next() {
-  if (!head) {
-    current_task = idle_task;
-    return idle_task;
-  } else if (current_task == idle_task) {
-    current_task = head;
+  if (!current_task) {
     return head;
   }
 

@@ -3,7 +3,6 @@
 void _start() {
   volatile uint64_t counter = 0;
 
-
   long ret;
   __asm__ __volatile__(
     "syscall"
@@ -12,20 +11,11 @@ void _start() {
     : "rcx", "r11", "memory" // Clobbers: Hardware overwrites RCX and R11
   );
 
-  __asm__ volatile("" ::: "memory");
-
-  if (ret == 5) {
-      __asm__ __volatile__("cli");
-  }
-
   while (counter < 500000000LL) {
     counter++;
   }
 
   __asm__ volatile("" ::: "memory");
-
-  __asm__ __volatile__("cli");
-
 
   while (1) {
     __asm__ __volatile__("nop");

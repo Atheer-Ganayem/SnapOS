@@ -16,7 +16,22 @@ syscall_init:
   ; setting up GDT info
   mov ecx, 0xC0000081 ; STAR MSR
   xor eax, eax
-  mov edx, 0x00100008 ; user base gdt 0x10, kernel base 0x08
+  
+  ; funny GPF that took me several hours to fix:
+  ; in Intel, on sysret it forces |= 3 to CS and SS.
+  ; but in AMD it only does that to the CS.
+  ; QEMU behaves like Intel, so i didnt have issues there.
+  ; But my machine is AMD, so it kept GPF-ing.
+  ; For some F*cking reason, this information is not mentioned in wiki.osdev.org but
+  ; mentioned in osdev.wiki, so claude helped me with this.
+  ; So what happened is:
+  ; - The init task did a syscall
+  ; - sysret didnt set RPL=3
+  ; - Code executed normally even when CPL != RPL because we are in long mode (the CPU doesnt care about SS when pushing/popping).
+  ; - Task descheduled and the CPU pushed the SS with CPL = 0.
+  ; - When the task scheduled again, iretq popped the SS with CPL = 0, and iretq forces CPL = RPL,
+  ; - it notices they are diffrent, and threw a GPF.
+  mov edx, 0x00130008 ; user base gdt 0x13, kernel base 0x08
   wrmsr
 
   ; syscall entry point

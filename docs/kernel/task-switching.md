@@ -25,5 +25,12 @@ So everytime (after the first cycle of schedule then deschedule. the first time 
 get interrupted there's no privlage escelation so no need to look at `tss.rsp0`.
 
 
-## Timer IRQ
+## Creating the init task
+The init task starts as a kthread, we pass it a pointer to a function `init_task_init` and args as the path for the init task in the VFS.
+`arch_init_kthread_context` handles faking the interrupts frame and stack frame - just like user tasks - but what's different from user tasks is that the interrupt frame `RIP` is set to `kthread_exit`, and in the stack frame just like the user tasks, we set the return address to `ret_from_fork` BUT we pass the function pointer in `R12` and `arg` to `R13`.
+In `ret_from_fork` we check if `R12` is null, if not, we mov `R13` to `RDI` and call `R12`.
+Now we are in `void init_task_init(void* arg)`, it allocates an mm struct, loads the elf file from the given `arg`, allocates user stack, and finally calls `arch_update_init_task_context` and passes it tne entry point address read from the ELF file.
+`arch_update_init_task_context` updates the interrupt frame such that `CS` and `SS` are set to user selectors, and `RIP` updated from `kthread_exit` to `entry_point`, and finally `RSP` is set to the user stack.
+And finally `init_task_init` returns and we jump to user land.
 
+## Timer IRQ

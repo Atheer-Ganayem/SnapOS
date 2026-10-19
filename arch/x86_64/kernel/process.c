@@ -85,8 +85,7 @@ extern void tss_set_rsp0(void* addr);
 
 void arch_switch_to(struct task_struct* prev, struct task_struct* next) {
   if (next->kernel_stack != NULL) {
-    // 2. Cast to uint8_t* to guarantee the math adds exactly 16,384 bytes (4 pages)
-    uint64_t stack_top = (uint64_t)((uint8_t*)next->kernel_stack + (PAGE_SIZE * 4));
+    uint64_t stack_top = (uint64_t)((uint8_t*)next->kernel_stack + TASK_KERNEL_STACK_SIZE);
     tss_set_rsp0((void*)stack_top);
   }
 

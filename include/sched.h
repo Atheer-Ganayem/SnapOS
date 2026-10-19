@@ -11,4 +11,6 @@ void sched_enqueue(struct task_struct* t);
 
 void schedule();
 
+int timer_irq_init();
+
 #endif 

@@ -6,8 +6,8 @@
 
 #include "../acpi/acpi.h"
 
-#define MAX_IRQ 15
-#define IRQ_COUNT (MAX_IRQ + 1)
+#define MAX_PIC_IRQ 15
+#define PIC_IRQ_COUNT (MAX_PIC_IRQ + 1)
 #define PIC1_OFFSET 0x20
 #define PIC2_OFFSET (PIC1_OFFSET + 8)
 
@@ -104,6 +104,7 @@ struct lapic {
   uint32_t rsv4[4];
 };
 
+
 union ioapic_redirection_entry {
   struct {
     uint32_t lower_dword;
@@ -111,11 +112,16 @@ union ioapic_redirection_entry {
   };
   
   struct { 
-  uint8_t int_vector; // interrupt vector
-  uint8_t flags;
-  uint8_t mask;
-  uint32_t rsv;
-  uint8_t dest;
+  uint64_t vector     : 8; // interrupt vector
+  uint64_t delivery   : 3;
+  uint64_t dest_mode  : 1;
+  uint64_t status     : 1; // read-only
+  uint64_t polarity   : 1; // 0 = active high, 1 = active low
+  uint64_t remote_irr : 1; // read-only
+  uint64_t trigger    : 1;  // 0 = Edge sensitive, 1 = Level sensitive.
+  uint64_t mask       : 1;
+  uint64_t rsv        : 39;
+  uint64_t dest       : 8;
   };
 } __attribute__((packed));
 
@@ -131,7 +137,7 @@ struct irq_override {
 
 extern struct lapic* lapic;
 extern struct ioapic ioapic;
-extern struct irq_override irq_overrides[IRQ_COUNT];
+extern struct irq_override irq_overrides[PIC_IRQ_COUNT];
 
 void init_apic();
 void apic_eoi();

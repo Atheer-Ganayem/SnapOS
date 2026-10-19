@@ -78,15 +78,22 @@ void pit_sleep(uint16_t count) {
   outb(PIT_CH0_PORT, (uint8_t)count);
   outb(PIT_CH0_PORT, (uint8_t)(count >> 8));
 
-  uint16_t current_count;
+  uint8_t status;
 
   do {
-    outb(PIT_CMD_PORT, 0x00);
-    uint8_t low = inb(PIT_CH0_PORT);
-    uint8_t high = inb(PIT_CH0_PORT);
-
-    current_count = (high << 8) | low;
-  } while (current_count > 0);
+    /* from osdev:
+      Bits         Usage
+      7 and 6      Must be set for the read back command
+      5            Latch count flag (0 = latch count, 1 = don't latch count)
+      4            Latch status flag (0 = latch status, 1 = don't latch status)
+      3            Read back timer channel 2 (1 = yes, 0 = no)
+      2            Read back timer channel 1 (1 = yes, 0 = no)
+      1            Read back timer channel 0 (1 = yes, 0 = no)
+      0            Reserved (should be clear)
+    */
+    outb(PIT_CMD_PORT, 0xE2); // 0b11100010
+    status = inb(PIT_CH0_PORT);
+  } while (!(status & 0x80));
 }
 
 void pit_sleep_10ms() {

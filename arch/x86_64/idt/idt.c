@@ -28,10 +28,10 @@ struct interrupt_descriptor {
 
 struct interrupt_descriptor idt[IDT_COUNT];
 
-typedef void (*interrupt_handler)(struct interrupt_frame* frame, uint64_t int_no, uint64_t err_code);
+typedef void (*interrupt_handler)(struct interrupt_frame* frame, uint64_t int_no );
 
-void dummy_interrupt_handler(struct interrupt_frame* frame, uint64_t int_no, uint64_t err_code) {
-  (void)frame; (void)int_no; (void)err_code;
+void dummy_interrupt_handler(struct interrupt_frame* frame, uint64_t int_no) {
+  (void)frame; (void)int_no;
   vga_print_color("dummy_interrupt_handler\n", VGA_COLOR_GREEN);
   while(1) {
     // just loop for now
@@ -55,7 +55,7 @@ extern void int13();
 extern void int14();
 extern void int32();
 extern void int33();
-void register_eceptions() {
+static void register_eceptions() {
   for (size_t i = 0; i < EXCEPTION_COUNT; i++) {
     register_intrerrupt(i, dummy_interrupt_handler);
   }
@@ -63,10 +63,11 @@ void register_eceptions() {
   register_intrerrupt(0, int0);
   register_intrerrupt(13, int13);
   register_intrerrupt(14, int14);
-  register_intrerrupt(32, int32);
-  register_intrerrupt(33, int33);
+  // register_intrerrupt(32, int32);
+  // register_intrerrupt(33, int33);
 }
 
+extern uint64_t irq_tramp_table[224];
 void idt_init() {
   memset(idt, 0x00, sizeof(idt));
 
@@ -76,5 +77,10 @@ void idt_init() {
   };
 
   register_eceptions();
+  
+  for (int v = 32; v < IDT_COUNT; v++) {
+    register_intrerrupt(v, (interrupt_handler)irq_tramp_table[v-32]);
+  }
+  
   load_idtr(&idtr_ptr);
 }

@@ -81,7 +81,7 @@ static void madt_parse_record_type_2(struct madt_record_header* header) {
 
   struct madt_record_override* rec = (struct madt_record_override*)header;
 
-  if (rec->irq_src > MAX_IRQ) {
+  if (rec->irq_src > MAX_PIC_IRQ) {
     return;
   }
 

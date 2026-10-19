@@ -8,10 +8,10 @@
 
 struct lapic* lapic = NULL;
 struct ioapic ioapic = {.addr = NULL};
-struct irq_override irq_overrides[IRQ_COUNT] = {}; 
+struct irq_override irq_overrides[PIC_IRQ_COUNT] = {}; 
 
 static void irq_overrides_init() {
-  for (size_t i = 0; i < IRQ_COUNT; i++) {
+  for (size_t i = 0; i < PIC_IRQ_COUNT; i++) {
     irq_overrides[i].gsi = i;
     irq_overrides[i].flags = 0;
   }
@@ -50,7 +50,7 @@ static void ioapic_write(uint32_t reg, uint32_t val) {
 }
 
 static void ioapic_write_entry(uint32_t pin, union ioapic_redirection_entry* entry) {
-  if (unlikely(pin < ioapic.gsi_base || pin > ioapic.gsi_base + ioapic_max_redirection_entries())) {
+  if (unlikely(pin < ioapic.gsi_base || pin >= ioapic.gsi_base + ioapic_max_redirection_entries())) {
     panic("ioapic_write_entry: pin/gsi not in range.");
   }
   ioapic_write(IOAPIC_REDIRECTION_TABLE_START_OFFSET + pin*2 + 1, entry->upper_dword);
@@ -67,14 +67,24 @@ void apic_eoi() {
 }
 
 void apic_route_irq(uint8_t irq, uint8_t vector) {
-  union ioapic_redirection_entry kyb_entry = {0};
-  kyb_entry.int_vector = vector;
-  kyb_entry.dest = 0;
-  kyb_entry.mask = 0;
+  uint32_t gsi = irq;
+  uint32_t flags = 0;
+  if (irq <= MAX_PIC_IRQ) {
+    gsi = irq_overrides[irq].gsi;
+    flags = irq_overrides[irq].flags;
+  }
 
-  ioapic_write_entry(irq_overrides[irq].gsi, &kyb_entry);
+  union ioapic_redirection_entry e = {0};
+  e.vector = vector;
+  e.polarity = (((flags) & 3) == 3); // 3 = active low. deafult active high.
+  e.trigger = (((flags >> 2) & 3) == 3); // 3 = level triggered. default edge triggered.
+  e.mask = 0;
+  e.dest = 0;
+
+  ioapic_write_entry(gsi, &e);
 }
 
+#include <asm/io.h>
 void lapic_timer_init(uint8_t vector) {
   lapic->div_config_reg = 0x03; // div 16
 
@@ -83,6 +93,8 @@ void lapic_timer_init(uint8_t vector) {
   lapic->init_count_reg = 0xFFFFFFFF;
 
   pit_sleep_10ms();
+
+  barrier();
 
   uint32_t current_count = lapic->current_count_reg;
   

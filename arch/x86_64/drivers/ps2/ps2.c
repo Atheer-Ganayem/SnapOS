@@ -2,16 +2,20 @@
 #include <drivers/vga.h>
 #include <asm/special_insns.h>
 #include "../../apic/apic.h"
+#include <irq.h>
+#include <types.h>
 
+void kyb_irq(unsigned irq, void* dev);
 
 void ps2_init() {
-  irq_route(IRQ_PS2, IDT_KEYBOARD);
+  if (request_irq(IRQ_PS2, kyb_irq, "ps2-kyb", NULL) != 0) {
+    panic("ps2 requestion irq failed.\n");
+  }
 }
 
-void kyb_irq(struct interrupt_frame* frame, uint64_t int_no, uint64_t err_code) {
-  (void)frame; (void)int_no; (void)err_code;
+void kyb_irq(unsigned irq, void* dev) {
+  (void)irq; (void)dev;
   uint8_t scancode = inb(0x60);
-  apic_eoi();
 
   if (scancode & 0x80) {
     return;

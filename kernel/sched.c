@@ -4,6 +4,7 @@
 #include <mm.h>
 #include <cpu.h>
 #include <asm/irq.h>
+#include <irq.h>
 
 static struct task_struct* idle_task = NULL; 
 
@@ -79,3 +80,24 @@ void schedule() {
 
   arch_switch_to(current, next);
 } 
+
+#include <drivers/vga.h>
+void timer_irq_handler(unsigned irq, void* dev) {
+  (void)irq; (void)dev;
+
+  struct task_struct* cur = cpu0_data.current;
+
+  if (cur != sched_current()) {
+    panic("\ncur != sched_current()\n");
+  }
+
+  // int color = frame->cs == 0x23 ? VGA_COLOR_GREEN : frame->cs == 0x08 ? VGA_COLOR_MAGENTA : VGA_COLOR_RED;
+  int color = VGA_COLOR_GREEN;
+  vga_putchar_color('0' + cur->pid, color);
+
+  schedule();
+}
+
+int timer_irq_init() {
+  return request_irq(IRQ_TIMER, timer_irq_handler, "timer IRQ", NULL);
+}

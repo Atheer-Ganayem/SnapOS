@@ -87,4 +87,6 @@ void setup_stage2() {
 
   syscall_init(syscall_entry);
   write_gs((uint64_t)&cpu0_data);
+
+  ps2_init();
 }

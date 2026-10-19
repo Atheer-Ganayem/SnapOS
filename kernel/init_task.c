@@ -1,15 +1,10 @@
 #include <task.h>
 #include <sched.h>
-#include <drivers/vga.h>
 #include <types.h>
 #include <elf.h>
 #include <mm.h>
 
-#include <asm/special_insns.h>
-
 void init_task_init(void* arg) {
-  vga_print((char*)arg);
-
   struct task_struct* t = sched_current();
   if (unlikely(!t))
     panic("init_task_init: no current task.\n");
@@ -23,21 +18,9 @@ void init_task_init(void* arg) {
   if (mm_alloc_main_stack(t->mm) < 0)
     panic("init_task_init: err alloc_user_stack.\n");
 
-  vga_print("got t\n");
-
-  vga_putchar('0' + t->pid);
-
   void* entry_point = elf_load((char*)arg, t);
   if (IS_ERR(entry_point))
     panic("init_task_init: elf load failed.\n");
 
-  bool test = ((uintptr_t)entry_point) == 0x400000ULL;
-  vga_putchar('0' + test);
-  vga_print("\n");
-
-  vga_print("elf loaded\n");
-
   arch_update_init_task_context(t, entry_point);
-
-  vga_print("ctx updated\n");
 }

@@ -3,7 +3,6 @@
 #include <asm/setup.h>
 #include <asm/special_insns.h>
 #include "../apic/apic.h"
-#include "../drivers/ps2/ps2.h"
 #include <cpu.h>
 
 #define MEMORY_MAP_ADDR       0xFFFFFFFF80000510ULL
@@ -87,6 +86,4 @@ void setup_stage2() {
 
   syscall_init(syscall_entry);
   write_gs((uint64_t)&cpu0_data);
-
-  ps2_init();
 }

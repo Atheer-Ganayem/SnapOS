@@ -4,8 +4,6 @@
 #include <stdint.h>
 #include <asm/context.h>
 
-#define IRQ_PS2 1
-
 #define IDT_TIMER     32
 #define IDT_KEYBOARD  33
 

@@ -38,4 +38,7 @@ void syscall_init(void* sycall_entry_addr);
 
 void write_gs(uint64_t data);
 
+extern unsigned long __local_irq_save();
+extern void __local_irq_restore(unsigned long flags);
+
 #endif

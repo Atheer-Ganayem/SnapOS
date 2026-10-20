@@ -93,7 +93,7 @@ void timer_irq_handler(unsigned irq, void* dev) {
 
   // int color = frame->cs == 0x23 ? VGA_COLOR_GREEN : frame->cs == 0x08 ? VGA_COLOR_MAGENTA : VGA_COLOR_RED;
   int color = VGA_COLOR_GREEN;
-  vga_putchar_color('0' + cur->pid, color);
+  // vga_putchar_color('0' + cur->pid, color);
 
   schedule();
 }

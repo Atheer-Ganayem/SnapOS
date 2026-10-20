@@ -8,6 +8,7 @@
 #define VEC_SPURIOUS  0xFF
 
 #define IRQ_TIMER 0
+#define IRQ_PS2   1
 
 static inline void local_irq_disable() {
   cli();
@@ -16,6 +17,14 @@ static inline void local_irq_disable() {
 static inline void local_irq_enable() {
   sti();
 }
+
+static inline unsigned long local_irq_save() {
+  return __local_irq_save();
+};
+
+static inline void local_irq_restore(unsigned long flags) {
+  return __local_irq_restore(flags);
+};
 
 void arch_irq_enable(unsigned irq);
 

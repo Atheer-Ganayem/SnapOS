@@ -2,6 +2,7 @@
 #define ASM_IO_H
 
 #include <stdint.h>
+#include <asm/special_insns.h>
 
 #define barrier() __asm__ volatile("" ::: "memory");
 #define rmb() barrier()

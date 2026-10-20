@@ -17,6 +17,8 @@ global cli
 global get_current_apic_id
 global load_idtr
 global write_gs
+global __local_irq_save
+global __local_irq_restore
 
 read_cr3:
   mov rax, cr3
@@ -124,4 +126,15 @@ write_gs:
   xor edx, edx
   mov ecx, 0xC0000102 ; IA32_KERNEL_GS_BASE
   wrmsr
+  ret
+
+__local_irq_save:
+  pushfq
+  pop rax
+  cli
+  ret
+
+__local_irq_restore:
+  push rdi
+  popfq
   ret

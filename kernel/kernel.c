@@ -24,7 +24,7 @@ extern struct dentry* vfs_root;
 
 struct cpu_local_data cpu0_data = {.stack_size = TASK_KERNEL_STACK_SIZE};
 
-
+extern int ps2_kyb_init();
 
 void kmain() {
   int res = early_pmm_init(); 
@@ -72,6 +72,10 @@ void kmain() {
   vga_print_color((char*)((struct ext2_fs_info*)vfs_root->sb->priv_data)->superblock.volume_name, VGA_COLOR_GREEN);
   vga_putchar_color('0' + ((struct ext2_inode_info*)vfs_root->inode->priv_data)->inode->hard_links_count, VGA_COLOR_RED);
   vga_print(")\n");
+
+
+  if (ps2_kyb_init() != 0)
+    panic("couldn't init kyb.\n");
 
 
   create_idle_task();

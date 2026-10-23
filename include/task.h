@@ -6,6 +6,8 @@
 #include <paging.h>
 #include <asm/context.h>
 
+#include <list.h>
+
 #define TASK_RUNNING        0
 #define TASK_INTERRUPTIBLE  1 // sleeping
 
@@ -24,7 +26,9 @@ struct task_struct {
   struct mm_struct* mm;
   struct task_context ctx;
 
-  struct task_struct* next;
+  // struct task_struct* next;
+
+  struct list_head run_node;
 };
 
 // struct task_struct* task_create(void* entry_point, struct mm_struct* mm);

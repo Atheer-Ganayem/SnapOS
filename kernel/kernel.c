@@ -84,17 +84,19 @@ void kmain() {
   if (res < 0) {
     panic("kthread run err\n");
   }
-
+  
+  
   if (timer_irq_init() != 0)
-    panic("failed to init timer irq.\n");
-
+  panic("failed to init timer irq.\n");
+  
   local_irq_enable();
+  vga_print("1\n");
   schedule();
+  vga_print("2\n");
 
 
   /*
     - protection against passing syscall number out of range.
-    - some inconsitincies (idk the spelling) in ssize_t and size_t in vfs functions and INODE struct.
     - Bug in kmalloc, check 'TODO' comment there.
     - 'TODO' comments in ahci.
     - IRQ routing for PCI devices

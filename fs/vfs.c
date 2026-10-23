@@ -187,6 +187,9 @@ ssize_t vfs_read(struct file* f, void* buf, size_t count) {
   if (unlikely(f->ref_count == 0))
     return -EINVAL;
 
+  if (count > SSIZE_MAX)
+    count = SSIZE_MAX;
+
   return f->fops->read(f, buf, count, &f->pos);
 }
 

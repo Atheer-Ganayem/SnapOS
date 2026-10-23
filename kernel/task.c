@@ -23,6 +23,8 @@ struct task_struct* task_alloc() {
   t->pid = get_next_pid();
   t->mm = NULL;
 
+  INIT_LIST_HEAD(&t->run_node);
+
   return t;
 }
 

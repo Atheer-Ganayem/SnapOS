@@ -2,11 +2,13 @@
 #define TYPES_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
 typedef __PTRDIFF_TYPE__ ssize_t;
+#define SSIZE_MAX PTRDIFF_MAX 
 
 #define MAX_ERRNO   4095
 
@@ -32,6 +34,10 @@ typedef __PTRDIFF_TYPE__ ssize_t;
 void panic(char* s);
 
 static inline uint32_t u32_min(uint32_t a, uint32_t b) {
+  return a < b ? a : b;
+}
+
+static inline uint32_t size_min(size_t a, size_t b) {
   return a < b ? a : b;
 }
 

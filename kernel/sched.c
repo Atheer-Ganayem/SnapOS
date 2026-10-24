@@ -53,13 +53,12 @@ struct task_struct* __sched_next() {
   return list_entry(run_queue.next, struct task_struct, run_node);
 }
 
-#include <drivers/vga.h>
-void schedule() {
+void __schedule(bool preempt) {
   signed long flags = local_irq_save();
 
   struct task_struct* current = sched_current();
   
-  if (current->state != TASK_RUNNING) {
+  if (!preempt && current->state != TASK_RUNNING) {
     __sched_dequeue(current);
   }
   
@@ -74,6 +73,10 @@ void schedule() {
   }
 
   local_irq_restore(flags);
+}
+
+void schedule() {
+  __schedule(false);
 } 
 
 int wake_up_task(struct task_struct* t) {
@@ -90,6 +93,11 @@ int wake_up_task(struct task_struct* t) {
   return ret;
 }
 
+void set_current_state(int state) {
+  task_set_state(sched_current(), state);
+}
+
+#include <drivers/vga.h>
 void timer_irq_handler(unsigned irq, void* dev) {
   (void)irq; (void)dev;
 
@@ -100,10 +108,10 @@ void timer_irq_handler(unsigned irq, void* dev) {
   }
 
   // int color = frame->cs == 0x23 ? VGA_COLOR_GREEN : frame->cs == 0x08 ? VGA_COLOR_MAGENTA : VGA_COLOR_RED;
-  int color = VGA_COLOR_GREEN;
-  vga_putchar_color('0' + cur->pid, color);
+  // int color = VGA_COLOR_GREEN;
+  // vga_putchar_color('0' + cur->pid, color);
 
-  schedule();
+  __schedule(true);
 }
 
 int timer_irq_init() {

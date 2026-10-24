@@ -1,5 +1,6 @@
 #include <input.h>
 #include <drivers/vga.h>
+#include <tty.h>
 
 static const char ascii_map[128] = {
   [KEY_A] = 'a', [KEY_B] = 'b', [KEY_C] = 'c', [KEY_D] = 'd', [KEY_E] = 'e',
@@ -80,6 +81,6 @@ void input_handle_event(keycode_t key, bool is_release) {
 
   if (c) {
     vga_putchar(c);
+    tty_push_char(tty0, c);
   }
-  // tty later
 }

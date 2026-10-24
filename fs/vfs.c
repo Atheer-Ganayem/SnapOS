@@ -238,3 +238,19 @@ ssize_t vfs_seek(struct file* f, ssize_t offset ,int whence) {
 
   return new_pos;
 }
+
+#include <sched.h>
+#include <drivers/vga.h>
+long sys_read(unsigned int fd, char* buf, size_t count) {
+  if (fd >= OPEN_FILE_TABLE_COUNT)
+  return -EBADF;
+  
+  
+  struct task_struct* cur = sched_current();
+  struct file* f = cur->fd[fd];
+  if (!f)
+    return -EBADF;
+  // vga_print("in sysread");
+
+  return f->fops->read(f, buf, count, &f->pos);
+}

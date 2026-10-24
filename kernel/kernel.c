@@ -7,8 +7,8 @@
 #include <sched.h>
 #include <asm/irq.h>
 #include <irq.h>
-
 #include <cpu.h>
+#include <tty.h>
 
 void panic(char* s) {
   if (s) {
@@ -77,6 +77,8 @@ void kmain() {
   if (ps2_kyb_init() != 0)
     panic("couldn't init kyb.\n");
 
+  if (tty_init() < 0)
+    panic("couldn'y init tty.\n");
 
   create_idle_task();
 
@@ -85,18 +87,17 @@ void kmain() {
     panic("kthread run err\n");
   }
   
-  
   if (timer_irq_init() != 0)
   panic("failed to init timer irq.\n");
   
   local_irq_enable();
-  vga_print("1\n");
   schedule();
-  vga_print("2\n");
 
 
   /*
     - protection against passing syscall number out of range.
+    - Add READ/WRITE _ONCE in list.h and read more about ot.
+    - just noticed we are using "hlt" which is arch specefic in kernel.c
     - Bug in kmalloc, check 'TODO' comment there.
     - 'TODO' comments in ahci.
     - IRQ routing for PCI devices

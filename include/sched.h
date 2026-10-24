@@ -13,4 +13,8 @@ void schedule();
 
 int timer_irq_init();
 
+void set_current_state(int state);
+
+int wake_up_task(struct task_struct* t);
+
 #endif 

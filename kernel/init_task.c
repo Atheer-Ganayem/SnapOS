@@ -3,6 +3,7 @@
 #include <types.h>
 #include <elf.h>
 #include <mm.h>
+#include <tty.h>
 
 void init_task_init(void* arg) {
   struct task_struct* t = sched_current();
@@ -23,4 +24,8 @@ void init_task_init(void* arg) {
     panic("init_task_init: elf load failed.\n");
 
   arch_update_init_task_context(t, entry_point);
+
+  t->fd[0] = tty0_file;
+  t->fd[1] = tty0_file;
+  t->fd[2] = tty0_file;
 }

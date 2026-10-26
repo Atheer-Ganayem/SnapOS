@@ -5,8 +5,13 @@
 #include <vfs.h>
 #include <spinlock.h>
 #include <sched.h>
+#include <wait.h>
+#include <sched.h>
+#include <string.h>
+
 
 #define TTY_BUF_SIZE 512
+#define TMP_BUF_SIZE 64
 
 struct task_struct;
 struct tty_struct {
@@ -16,7 +21,8 @@ struct tty_struct {
   uint32_t fg_pid;
   uint32_t leader_pid;
 
-  struct task_struct* sleeping_task;
+  struct wait_queue_head read_wait; // used for foreground tasks waiting to read.
+  struct wait_queue_head fg_wait; // used for background tasks waiting to be foreground.
 };
 
 struct tty_struct* tty0 = NULL;
@@ -33,6 +39,8 @@ int tty_init() {
     return -ENOMEM;
 
   spin_lock_init(&tty->lock);
+  init_waitqueue_head(&tty->read_wait);
+  init_waitqueue_head(&tty->fg_wait);
   tty->leader_pid = 1;
   tty->fg_pid = 1;
 
@@ -69,77 +77,104 @@ int tty_init() {
   return 0;
 }
 
+// You need to lock to call this.
+static inline bool __tty_is_empty(struct tty_struct* tty) {
+  return tty->head == tty->tail;
+}
+
+// You need to lock to call this.
+static bool __is_fg(struct tty_struct* tty, struct task_struct* t) {
+  return tty->fg_pid == t->pid;
+}
+
+// This holds the lock.
 static inline bool tty_is_empty(struct tty_struct* tty) {
   signed long flags;
-  spin_lock_irqsave(tty->lock, flags);
+  spin_lock_irqsave(&tty->lock, flags);
 
-  bool ret = tty->head == tty->tail;
+  bool ret = __tty_is_empty(tty);
   
-  spin_unlock_irqrestore(tty->lock, flags);
+  spin_unlock_irqrestore(&tty->lock, flags);
   return ret;
 }
 
-#include <drivers/vga.h>
 void tty_push_char(struct tty_struct* tty, char input) {
   signed long flags;
-  spin_lock_irqsave(tty->lock, flags);
+  spin_lock_irqsave(&tty->lock, flags);
 
   uint32_t tail = (tty->tail + 1 ) % TTY_BUF_SIZE;
   if (tail != tty->head) {
     tty->buffer[tty->tail] = input;
     tty->tail = tail;
   }
-
-  if (tty->sleeping_task) {
-    wake_up_task(tty->sleeping_task);
-    tty->sleeping_task = NULL;
-  }
-
-  spin_unlock_irqrestore(tty->lock, flags);
+  
+  spin_unlock_irqrestore(&tty->lock, flags);
+  
+  wake_up(&tty->read_wait);
 }
 
-// assumed there is a char to pop
-static char tty_pop_char(struct tty_struct* tty) {
-  signed long flags;
-  spin_lock_irqsave(tty->lock, flags);
+#include <drivers/vga.h>
 
+// assumed there is a char to pop.
+static char __tty_pop_char(struct tty_struct* tty) {
   char c = tty->buffer[tty->head];
   tty->head = (tty->head + 1) % TTY_BUF_SIZE;
 
-  spin_unlock_irqrestore(tty->lock, flags);
+  vga_print("popping: ");
+  vga_putchar(c);
+  vga_print("\n");
+
   return c;
 }
 
+// not safe, no locks.
+ssize_t __tty_read(struct tty_struct* tty, void* buf, size_t count) {
+  ssize_t tocopy = 0;
 
-#include <sched.h>
-ssize_t tty_read(struct file* file, void* buf, size_t count, size_t* offset) {
-  vga_print("in tty read\n");
-  (void)offset;
-  struct tty_struct* tty = (struct tty_struct*)file->dentry->inode->priv_data;
+  if (!__tty_is_empty(tty)) {
+    ssize_t available = (tty->head < tty->tail) ?
+      (tty->tail - tty->head) :
+      (TTY_BUF_SIZE - tty->head + tty->tail);
+    tocopy = size_min(available, count);
 
-  while (tty_is_empty(tty)) {
-    signed long flags;
-    spin_lock_irqsave(tty->lock, flags);
-
-    set_current_state(TASK_INTERRUPTIBLE);
-    tty->sleeping_task = sched_current();
-    vga_print("going to sleep\n");
-
-    spin_unlock_irqrestore(tty->lock, flags);
-    schedule();
-  }
-
-  vga_print("got a letter\n");
-  
-  ssize_t available = (tty->head < tty->tail) ?
-                      (tty->tail - tty->head) :
-                      (TTY_BUF_SIZE - tty->head + tty->tail);
-  ssize_t tocopy = size_min(available, count);
-
-  for (ssize_t i = 0; i < tocopy; i++) {
-    ((char*)buf)[i] = tty_pop_char(tty);
+    for (ssize_t i = 0; i < tocopy; i++) {
+      ((char*)buf)[i] = __tty_pop_char(tty);
+    }
   }
 
   return tocopy;
 }
 
+ssize_t tty_read(struct file* file, void* buf, size_t count, size_t* offset) {
+  (void)offset;
+  struct tty_struct* tty = (struct tty_struct*)file->dentry->inode->priv_data;
+
+  struct wait_queue_entry wait_fg;
+  struct wait_queue_entry wait_read;
+  init_waitqueue_entry(&wait_fg, sched_current());
+  init_waitqueue_entry(&wait_read, sched_current());
+  
+  ssize_t ret = 0;
+  while (!ret) {
+    prepare_to_wait(&tty->fg_wait, &wait_fg, TASK_INTERRUPTIBLE);
+    prepare_to_wait(&tty->read_wait, &wait_read, TASK_INTERRUPTIBLE);
+
+    ssize_t to_read = size_min(TMP_BUF_SIZE, count);
+    unsigned long flags;
+
+    spin_lock_irqsave(&tty->lock, flags);
+    if (__is_fg(tty, sched_current())) {
+      ret = __tty_read(tty, buf, to_read);
+    }
+    spin_unlock_irqrestore(&tty->lock, flags);
+
+    if (ret == 0) {
+      schedule();
+      continue;
+    }
+  }
+  finish_wait(&tty->fg_wait, &wait_fg);
+  finish_wait(&tty->read_wait, &wait_read);
+
+  return ret;
+}

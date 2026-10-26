@@ -22,6 +22,7 @@ typedef __PTRDIFF_TYPE__ ssize_t;
 #define ENOENT           2      // No entity
 #define EIO              5
 #define EBADF            9
+#define EGAIN           11
 #define ENOMEM          12
 #define EACCES          13      // Permission denied
 #define EFAULT          14      // Bad address (Page Fault equivalent)

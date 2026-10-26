@@ -8,6 +8,8 @@
 #include <list.h>
 #include <asm/irq.h>
 
+#include <drivers/vga.h>
+
 static struct task_struct* idle_task = NULL; 
 
 static struct list_head run_queue = LIST_HEAD_INIT(run_queue);
@@ -27,9 +29,13 @@ void create_idle_task() {
   cpu0_data.current = idle_task;
 }
 
+void __sched_enqueue(struct task_struct* t) {
+  list_add_tail(&t->run_node, &run_queue);
+}
+
 void sched_enqueue(struct task_struct* t) {
   signed long flags = local_irq_save();
-  list_add_tail(&t->run_node, &run_queue);
+  __sched_enqueue(t);
   local_irq_restore(flags);
 }
 
@@ -79,13 +85,14 @@ void schedule() {
   __schedule(false);
 } 
 
+
 int wake_up_task(struct task_struct* t) {
   signed long flags = local_irq_save();
   bool ret = false;
 
   if (t->state != TASK_RUNNING) {
     t->state = TASK_RUNNING;
-    sched_enqueue(t);
+    __sched_enqueue(t);
     ret = true;
   }
 
@@ -97,7 +104,6 @@ void set_current_state(int state) {
   task_set_state(sched_current(), state);
 }
 
-#include <drivers/vga.h>
 void timer_irq_handler(unsigned irq, void* dev) {
   (void)irq; (void)dev;
 
@@ -107,7 +113,6 @@ void timer_irq_handler(unsigned irq, void* dev) {
     panic("\ncur != sched_current()\n");
   }
 
-  // int color = frame->cs == 0x23 ? VGA_COLOR_GREEN : frame->cs == 0x08 ? VGA_COLOR_MAGENTA : VGA_COLOR_RED;
   // int color = VGA_COLOR_GREEN;
   // vga_putchar_color('0' + cur->pid, color);
 

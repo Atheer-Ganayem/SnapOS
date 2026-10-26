@@ -100,7 +100,8 @@ void kmain() {
     - just noticed we are using "hlt" which is arch specefic in kernel.c
     - Bug in kmalloc, check 'TODO' comment there.
     - 'TODO' comments in ahci.
-    - IRQ routing for PCI devices
+    - TODO: TTY change fg function and wakeup (also the wakeup function should wakeup based on an id).
+    - TODO: locks in sched.c
   */
 
   while (1) {

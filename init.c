@@ -24,7 +24,7 @@ void _start() {
   long ret = 0;
   ret = sys_read(0, buf, 128);
   
-  char* ptr = (char*)ret;
+  char* ptr = (char*)buf[0];
   *ptr = 0;
 
   while (counter < 500000000LL) {

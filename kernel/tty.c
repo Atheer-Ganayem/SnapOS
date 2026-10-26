@@ -8,10 +8,10 @@
 #include <wait.h>
 #include <sched.h>
 #include <string.h>
+#include <uaccess.h>
 
 
 #define TTY_BUF_SIZE 512
-#define TMP_BUF_SIZE 64
 
 struct task_struct;
 struct tty_struct {
@@ -113,36 +113,45 @@ void tty_push_char(struct tty_struct* tty, char input) {
   wake_up(&tty->read_wait);
 }
 
-#include <drivers/vga.h>
-
-// assumed there is a char to pop.
-static char __tty_pop_char(struct tty_struct* tty) {
-  char c = tty->buffer[tty->head];
-  tty->head = (tty->head + 1) % TTY_BUF_SIZE;
-
-  vga_print("popping: ");
-  vga_putchar(c);
-  vga_print("\n");
-
-  return c;
-}
-
 // not safe, no locks.
 ssize_t __tty_read(struct tty_struct* tty, void* buf, size_t count) {
-  ssize_t tocopy = 0;
-
   if (!__tty_is_empty(tty)) {
     ssize_t available = (tty->head < tty->tail) ?
       (tty->tail - tty->head) :
       (TTY_BUF_SIZE - tty->head + tty->tail);
-    tocopy = size_min(available, count);
+    size_t tocopy = size_min(available, count);
 
-    for (ssize_t i = 0; i < tocopy; i++) {
-      ((char*)buf)[i] = __tty_pop_char(tty);
+    // the tty buf is a circular buffer.
+    // so the data we want to copy could be in two chunks, at the end and begining.
+    // if its 2 chunks:
+    // chunk1: from head to tail or the end of the buffer.
+    // check2: from the start of the buf to the tail.
+
+    size_t chunk1_size = size_min(tocopy, TTY_BUF_SIZE - tty->head);
+    size_t chunk2_size = tocopy - chunk1_size;
+
+    unsigned long uncopied1 = copy_to_user(buf, tty->buffer + tty->head, chunk1_size);
+    unsigned long copied1 = chunk1_size - uncopied1;
+
+    tty->head = (tty->head + copied1) % TTY_BUF_SIZE;
+
+    if (uncopied1 > 0) {
+      return copied1 == 0 ? -EFAULT : (ssize_t)copied1;
     }
+
+    if (chunk2_size > 0) {
+      unsigned long uncopied2 = copy_to_user(buf + chunk1_size, tty->buffer, chunk2_size);
+      unsigned long copied2 = chunk2_size - uncopied2;
+
+      tty->head = (tty->head + copied2) % TTY_BUF_SIZE;
+
+      return copied1 + copied2;
+    }
+
+    return copied1;
   }
 
-  return tocopy;
+  return 0;
 }
 
 ssize_t tty_read(struct file* file, void* buf, size_t count, size_t* offset) {
@@ -159,13 +168,13 @@ ssize_t tty_read(struct file* file, void* buf, size_t count, size_t* offset) {
     prepare_to_wait(&tty->fg_wait, &wait_fg, TASK_INTERRUPTIBLE);
     prepare_to_wait(&tty->read_wait, &wait_read, TASK_INTERRUPTIBLE);
 
-    ssize_t to_read = size_min(TMP_BUF_SIZE, count);
     unsigned long flags;
-
     spin_lock_irqsave(&tty->lock, flags);
+
     if (__is_fg(tty, sched_current())) {
-      ret = __tty_read(tty, buf, to_read);
+      ret = __tty_read(tty, buf, count);
     }
+
     spin_unlock_irqrestore(&tty->lock, flags);
 
     if (ret == 0) {

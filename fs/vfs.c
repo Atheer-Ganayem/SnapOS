@@ -240,7 +240,6 @@ ssize_t vfs_seek(struct file* f, ssize_t offset ,int whence) {
 }
 
 #include <sched.h>
-#include <drivers/vga.h>
 long sys_read(unsigned int fd, char* buf, size_t count) {
   if (fd >= OPEN_FILE_TABLE_COUNT)
   return -EBADF;
@@ -250,7 +249,9 @@ long sys_read(unsigned int fd, char* buf, size_t count) {
   struct file* f = cur->fd[fd];
   if (!f)
     return -EBADF;
-  // vga_print("in sysread");
+
+  if (count > SSIZE_MAX)
+    count = SSIZE_MAX;
 
   return f->fops->read(f, buf, count, &f->pos);
 }

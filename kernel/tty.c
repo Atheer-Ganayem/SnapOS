@@ -10,21 +10,6 @@
 #include <string.h>
 #include <uaccess.h>
 
-
-#define TTY_BUF_SIZE 512
-
-struct task_struct;
-struct tty_struct {
-  char buffer[TTY_BUF_SIZE];
-  size_t head, tail;
-  spinlock_t lock;
-  uint32_t fg_pid;
-  uint32_t leader_pid;
-
-  struct wait_queue_head read_wait; // used for foreground tasks waiting to read.
-  struct wait_queue_head fg_wait; // used for background tasks waiting to be foreground.
-};
-
 struct tty_struct* tty0 = NULL;
 struct file* tty0_file = NULL;
 
@@ -162,6 +147,7 @@ ssize_t tty_read(struct file* file, void* buf, size_t count, size_t* offset) {
   struct wait_queue_entry wait_read;
   init_waitqueue_entry(&wait_fg, sched_current());
   init_waitqueue_entry(&wait_read, sched_current());
+  wait_fg.func = pid_filter_wake_func;
   
   ssize_t ret = 0;
   while (!ret) {
@@ -186,4 +172,24 @@ ssize_t tty_read(struct file* file, void* buf, size_t count, size_t* offset) {
   finish_wait(&tty->read_wait, &wait_read);
 
   return ret;
+}
+
+int tty_set_fg(struct tty_struct* tty, uint32_t new_fg_pid) {
+  int res = 0;
+
+  unsigned long flags;
+  spin_lock_irqsave(&tty->lock, flags);
+
+  if (sched_current()->pid != tty->leader_pid) {
+    res = -ENOTTY;
+    goto exit;
+  }
+
+  tty->fg_pid = new_fg_pid;
+
+  wake_up(&tty->fg_wait);
+
+exit:
+  spin_unlock_irqrestore(&tty->lock, flags);
+  return res;
 }

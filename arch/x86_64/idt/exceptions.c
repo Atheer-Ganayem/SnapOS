@@ -11,11 +11,6 @@ void divide_by_zero_handler(struct interrupt_frame* frame, uint64_t int_no) {
   panic("Exception: divide by zero.\n");
 }
 
-void general_protection_handler(struct interrupt_frame* frame, uint64_t int_no) {
-  (void)frame; (void)int_no;
-  panic("Exception: general protection fault.\n");
-}
-
 struct ex_table_entry {
   uint64_t fault_addr;
   uint64_t fixup_addr;
@@ -39,6 +34,21 @@ static bool fixup_exception(struct interrupt_frame* frame) {
 }
 
 #define KERNEL_CS 0x08
+
+void general_protection_handler(struct interrupt_frame* frame, uint64_t int_no) {
+  (void)frame; (void)int_no;
+
+  if (frame->cs == KERNEL_CS) {
+    if (fixup_exception(frame)) {
+      return;
+    }
+
+    panic("Excpetion: general protection fault from kernel code with no fixup.\n");
+  }
+
+  // TODO: kill process.
+  panic("Exception: general protection fault from user code.\n");
+}
 
 void page_fault_handler(struct interrupt_frame* frame, uint64_t int_no) {
   (void)frame; (void)int_no;

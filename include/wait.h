@@ -40,6 +40,7 @@ struct wait_queue_head {
 struct task_struct;
 
 int default_wake_function(struct wait_queue_entry* wq_entry, unsigned mode, int flags, void* key);
+int pid_filter_wake_func(struct wait_queue_entry* wq_entry, unsigned mode, int flags, void* key);
 
 static inline void init_waitqueue_entry(struct wait_queue_entry* wq_entry, struct task_struct* t) {
   wq_entry->flags = 0;

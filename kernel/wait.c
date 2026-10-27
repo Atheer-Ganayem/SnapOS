@@ -39,21 +39,27 @@ void __wakeup(struct wait_queue_head* wq_head, unsigned int mode, int nr_exclusi
   signed long flags;
   spin_lock_irqsave(&wq_head->lock, flags);
 
-  struct list_head* cur = wq_head->head.next;
-
-  while (cur != &wq_head->head) {
-    struct wait_queue_entry* wq_entry = container_of(cur, struct wait_queue_entry, entry);
-
-    cur = cur->next;
-    
-    if (!mode || wq_entry->flags & mode) {
-      int woke_up = wq_entry->func(wq_entry, mode, 0, key);
-
-      if (woke_up && (wq_entry->flags & WQ_FLAG_EXCLUSIVE) && !--nr_exclusive) {
+  struct wait_queue_entry *cur;
+  list_for_each_entry(cur, &wq_head->head, entry) {
+    if (!mode || cur->flags & mode) {
+      int woke_up = cur->func(cur, mode, 0, key);
+      
+      if (woke_up && (cur->flags & WQ_FLAG_EXCLUSIVE) && !--nr_exclusive) {
         break;
       }
     }
   }
-  
+
   spin_unlock_irqrestore(&wq_head->lock, flags);
+}
+
+int pid_filter_wake_func(struct wait_queue_entry* wq_entry, unsigned mode, int flags, void* key) {
+  uint32_t pid = *(uint32_t*)key;
+  struct task_struct* t = (struct task_struct*)wq_entry->private;
+
+  if (t->pid == pid) {
+    return wake_up_task(t);
+  }
+
+  return 0;
 }

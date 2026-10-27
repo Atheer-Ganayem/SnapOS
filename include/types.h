@@ -30,6 +30,7 @@ typedef __PTRDIFF_TYPE__ ssize_t;
 #define ENODEV          19
 #define ENOTDIR         20      // Not a directory
 #define EINVAL          22      // Invalid argument
+#define ENOTTY          25
 #define ENOSYS          38
 #define EUCLEAN         117     // fs corruption
 

@@ -253,5 +253,27 @@ long sys_read(unsigned int fd, char* buf, size_t count) {
   if (count > SSIZE_MAX)
     count = SSIZE_MAX;
 
+  if (!f->fops || ! f->fops->read)
+    return -EBADF;
+
   return f->fops->read(f, buf, count, &f->pos);
+}
+
+long sys_write(unsigned int fd, const char* buf, size_t count) {
+  if (fd >= OPEN_FILE_TABLE_COUNT)
+  return -EBADF;
+  
+  
+  struct task_struct* cur = sched_current();
+  struct file* f = cur->fd[fd];
+  if (!f)
+    return -EBADF;
+
+  if (count > SSIZE_MAX)
+    count = SSIZE_MAX;
+
+  if (!f->fops || ! f->fops->write)
+    return -EBADF;
+
+  return f->fops->write(f, buf, count, &f->pos);
 }

@@ -33,5 +33,6 @@ void vga_putchar(char c);
 void vga_print(char* s);
 void vga_print_color(char* s, enum vga_color color);
 void vga_putchar_color(char c, enum vga_color color);
+void vga_del_last();
 
 #endif

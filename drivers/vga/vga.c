@@ -23,6 +23,11 @@ static inline uint16_t makechar(char c, enum vga_color color) {
   return color << 8 | c;
 }
 
+static inline void __vga_write(size_t x, size_t y, uint16_t val) {
+  size_t offset = y * VGA_BUF_WIDTH + x;
+  writew_relaxed(val, (void*)(vga_buf + offset));
+}
+
 void vga_putchar_color(char c, enum vga_color color) {
   if (isfull()) {
     return;
@@ -34,8 +39,7 @@ void vga_putchar_color(char c, enum vga_color color) {
     return;
   } 
 
-  size_t offset = y * VGA_BUF_WIDTH + x;
-  writew_relaxed(makechar(c, color), (void*)(vga_buf + offset));
+  __vga_write(x, y, makechar(c, color));
   
   x++;
   if (x % VGA_BUF_WIDTH == 0) {
@@ -56,4 +60,15 @@ void vga_print_color(char* s, enum vga_color color) {
 
 inline void vga_print(char* s) {
   vga_print_color(s, VGA_DEFAULT_TEXT_COLOR);
+}
+
+void vga_del_last() {
+  if (x == 0) {
+    x = y == 0 ? 0 : (VGA_BUF_WIDTH - 1);
+    y = y == 0 ? 0 : (y-1);
+  } else {
+    x--;
+  }
+  
+  __vga_write(x, y, 0x720);
 }

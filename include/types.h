@@ -40,7 +40,7 @@ static inline uint32_t u32_min(uint32_t a, uint32_t b) {
   return a < b ? a : b;
 }
 
-static inline uint32_t size_min(size_t a, size_t b) {
+static inline size_t size_min(size_t a, size_t b) {
   return a < b ? a : b;
 }
 

@@ -23,8 +23,6 @@ struct dentry;
 struct file;
 struct inode;
 
-typedef ssize_t (*file_read_t)(struct file* file, void* buf, size_t count, size_t* offset);
-
 typedef int (*fs_probe_t)(struct block_dev* bdev, struct fs_probe_info* info);
 
 // Validates that the FS can be mountedm, initializes FS internal data,
@@ -68,7 +66,8 @@ struct inode_operations {
 };
 
 struct file_operations {
-  file_read_t read;
+  ssize_t (*read)(struct file* f, void* buf, size_t count, size_t* offset);
+  ssize_t (*write)(struct file* f, const void* buf, size_t count, size_t* offset);
 };
 
 struct inode {
@@ -89,6 +88,8 @@ struct file {
   uint64_t pos;
   uint32_t ref_count;
   const struct file_operations* fops;
+
+  void* private_data;
 };
 
 struct dentry {

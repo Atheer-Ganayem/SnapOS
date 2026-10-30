@@ -3,7 +3,9 @@
 
 #include <stddef.h>
 
-long sys_read(unsigned int fd, char* buf, size_t count);
+long sys_read(unsigned int fd, void* buf, size_t count);
+long sys_write(unsigned int fd, const char* buf, size_t count);
+
 long sys_exit(int error_code);
 
 

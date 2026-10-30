@@ -11,5 +11,6 @@ intptr_t sys_not_implemented() {
 
 void* syscall_table[256] = {
   [0] = sys_read,
-  [1 ... 255] = sys_not_implemented,
+  [1] = sys_write,
+  [2 ... 255] = sys_not_implemented,
 };

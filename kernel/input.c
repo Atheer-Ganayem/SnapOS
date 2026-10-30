@@ -80,7 +80,6 @@ void input_handle_event(keycode_t key, bool is_release) {
   }
 
   if (c) {
-    vga_putchar(c);
     tty_push_char(tty0, c);
   }
 }

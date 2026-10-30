@@ -54,6 +54,7 @@ void __wakeup(struct wait_queue_head* wq_head, unsigned int mode, int nr_exclusi
 }
 
 int pid_filter_wake_func(struct wait_queue_entry* wq_entry, unsigned mode, int flags, void* key) {
+  (void)mode, (void)flags;
   uint32_t pid = *(uint32_t*)key;
   struct task_struct* t = (struct task_struct*)wq_entry->private;
 

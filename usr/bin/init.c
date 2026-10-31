@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stddef.h>
+#include <string.h>
 
 long sys_read(unsigned int fd, char* buf, size_t count) {
   long ret;
@@ -36,10 +37,22 @@ long sys_write(unsigned int fd, const char* buf, size_t count) {
 void _start() {
   volatile uint64_t counter = 0;
 
-  char buf[128] = "received: ";
-  long ret = 0;
-  ret = sys_read(0, &buf[10], 128 - 10);
-  ret = sys_write(1, buf, 10 + ret);
+  char buf[128];
+  char prefix[] = "snapos> ";
+  char res[] = "input: ";
+
+  while (1) {
+    sys_write(1, prefix, sizeof(prefix) - 1);
+    long ret = sys_read(0, buf, 128 - 10);
+    if (ret < 0) {
+      break;
+    }
+
+    sys_write(1, res, sizeof(res) - 1);
+
+    sys_write(1, buf, ret);
+  }
+
 
   // char* ptr = (char*)buf[0];
   // *ptr = 0;

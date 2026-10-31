@@ -28,9 +28,7 @@ all: build_bootloader bin/kernel.bin
 	sudo dd if=bin/stage2.bin of=$${LOOP_DEV} bs=512 seek=1 conv=notrunc status=none; \
 	sudo mount $${LOOP_DEV}p1 /tmp/snapos_mnt; \
 	sudo cp bin/kernel.bin /tmp/snapos_mnt/; \
-	sudo cp test.txt /tmp/snapos_mnt/; \
-	sudo cp -r test_dir /tmp/snapos_mnt/; \
-	sudo cp -r init /tmp/snapos_mnt/; \
+	sudo cp -r usr/build/bin /tmp/snapos_mnt/; \
 	sync; \
 	sudo umount -l /tmp/snapos_mnt; \
 	sudo losetup -d $${LOOP_DEV}
@@ -53,6 +51,7 @@ build/%.o: %.asm
 
 build_bootloader:
 	make -C arch/$(ARCH)/boot
+
 
 qemu:
 	qemu-system-x86_64 -m 2G -serial stdio -d int -no-reboot -smp 4 \

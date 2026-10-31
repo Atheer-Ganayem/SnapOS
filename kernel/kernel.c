@@ -82,7 +82,7 @@ void kmain() {
 
   create_idle_task();
 
-  res = kthread_run(init_task_init, "/init");
+  res = kthread_run(init_task_init, "bin/init");
   if (res < 0) {
     panic("kthread run err\n");
   }

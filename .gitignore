@@ -10,3 +10,4 @@ magic.txt
 test_disk.img
 test.txt
 test_dir/
+usr/build/*

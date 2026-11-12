@@ -2,6 +2,7 @@
 #include <string.h>
 #include <fs/ext2.h>
 #include <block.h>
+#include <uaccess.h>
 
 struct dentry* vfs_root = NULL;
 
@@ -263,7 +264,6 @@ long sys_write(unsigned int fd, const char* buf, size_t count) {
   if (fd >= OPEN_FILE_TABLE_COUNT)
   return -EBADF;
   
-  
   struct task_struct* cur = sched_current();
   struct file* f = cur->fd[fd];
   if (!f)
@@ -276,4 +276,37 @@ long sys_write(unsigned int fd, const char* buf, size_t count) {
     return -EBADF;
 
   return f->fops->write(f, buf, count, &f->pos);
+}
+
+long sys_open(const char* filename, int flags, int mode) {
+  (void)flags, (void)mode;
+
+  long len = strnlen_user(filename, PATH_MAX);
+  if (!len)
+    return -EFAULT;
+  else if (len > PATH_MAX)
+    return -ENAMETOOLONG; 
+  
+  if (!ACCESS_OK(filename, len))
+    return -EFAULT;
+  
+  char buf[PATH_MAX];
+
+  long uncopied = copy_from_user(buf, filename, len);
+  if (uncopied)
+    return -EFAULT;
+
+  buf[len] = '\0'; // just to make sure.
+
+  struct file* f = vfs_open(buf);
+  if (IS_ERR(f))
+    return PTR_ERR(f);
+
+  struct task_struct* t = sched_current();
+
+  int fd = task_insert_fd(t, f);
+  if (fd < 0)
+    return -EMFILE;
+
+  return fd;
 }

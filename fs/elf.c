@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <mm.h>
+#include <paging.h>
 
 static bool validate_ident(struct elf_ident* ident) {
   if (ident->magic[0] != ELF_MAGIC_0 || ident->magic[1] != ELF_MAGIC_1 ||

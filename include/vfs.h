@@ -4,7 +4,8 @@
 #include <types.h>
 #include <block.h>
 
-#define MAX_FS_DRIVERS 16
+#define MAX_FS_DRIVERS  16
+#define PATH_MAX        4096
 
 #define S_IFMT  0xF000
 #define S_IFREG 0x8000

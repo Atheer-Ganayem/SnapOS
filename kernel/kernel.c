@@ -102,6 +102,7 @@ void kmain() {
     - 'TODO' comments in ahci.
     - TODO: TTY change fg function and wakeup (also the wakeup function should wakeup based on an id).
     - TODO: locks in sched.c
+    - TODO: lower/higher addresses should be arch specific. Also ACCESS_OK.
   */
 
   while (1) {

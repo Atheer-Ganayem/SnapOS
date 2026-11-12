@@ -9,12 +9,15 @@
 
 extern char _kernel_end;
 
-#define KERNEL_START_PHYS_ADDR  0x1000000 // 16MiB
-#define KERNEL_START_VIRT_ADDR  0xFFFFFFFF81000000 // 16MiB
+#define KERNEL_START_PHYS_ADDR  0x1000000ULL // 16MiB
+#define KERNEL_START_VIRT_ADDR  0xFFFFFFFF81000000ULL // 16MiB
 #define MIN_USABLE_PADDR _MIN_USABLE_PADDR
-#define ID_VIRT_REGION_START    0xffff888000000000
+#define ID_VIRT_REGION_START    0xffff888000000000ULL
 #define PHYS_TO_VIRT(x) ((void*)(((uintptr_t)x) + ID_VIRT_REGION_START))
 #define VIRT_TO_PHYS(x) ((void*)(((uintptr_t)x) - ID_VIRT_REGION_START))
+
+#define USER_ADDRESS_MAX  0x7FFFFFFFFFFFULL
+#define ACCESS_OK(addr, size) likely(((addr + size) >= addr) && ((uintptr_t)(addr + size) < (uintptr_t)USER_ADDRESS_MAX))
 
 typedef void* (*pmm_alloc_frame_func_t)(void);
 

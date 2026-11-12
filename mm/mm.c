@@ -1,5 +1,6 @@
 #include <mm.h>
 #include <task.h>
+#include <paging.h>
 
 struct mm_struct* mm_create() {
   struct mm_struct* mm = kzalloc(sizeof(struct mm_struct));

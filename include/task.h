@@ -2,8 +2,6 @@
 #define TASK_H
 
 #include <stdint.h>
-#include <task.h>
-#include <paging.h>
 #include <asm/context.h>
 #include <list.h>
 
@@ -31,8 +29,6 @@ struct task_struct {
 
   struct file* fd[OPEN_FILE_TABLE_COUNT];
 
-  // struct task_struct* next;
-
   struct list_head run_node;
 };
 
@@ -45,5 +41,7 @@ int kthread_run(void (*fn)(void*), void* arg);
 void init_task_init(void* arg);
 
 void task_set_state(struct task_struct* task, int state);
+
+int task_insert_fd(struct task_struct* t, struct file* f);
 
 #endif

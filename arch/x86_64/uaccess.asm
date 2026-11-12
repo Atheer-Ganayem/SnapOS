@@ -5,6 +5,7 @@ section .text
 global copy_to_user
 global copy_from_user
 global strlen_user
+global strnlen_user
 
 
 ; unsigned long copy_to_user(void* dest, const void* src, unsigned long n);
@@ -62,6 +63,33 @@ strlen_user:
   xor rax, rax
   ret
 
+;long strnlen_user(const char* str, long count);
+; rdi = str, rsi = count.
+strnlen_user:
+  xor rax, rax
+  
+  test rsi, rsi
+  je .done
+
+.faulting_instr:
+  cmp byte[rdi + rax], 0
+  je .found_terminator
+  
+  inc rax
+  dec rsi
+  jz .done
+  jmp .faulting_instr
+
+.found_terminator:
+  inc rax
+  ret
+
+.done:
+  ret
+
+.fix_up:
+  xor rax, rax
+  ret
 
 section .ex_table
   align 8
@@ -73,4 +101,8 @@ section .ex_table
 
   dq strlen_user.faulting_instr
   dq strlen_user.fix_up
+
+  dq strnlen_user.faulting_instr
+  dq strnlen_user.fix_up
+
 

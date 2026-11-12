@@ -53,3 +53,14 @@ int kthread_run(void (*fn)(void*), void* arg) {
 void task_set_state(struct task_struct* task, int state) {
   task->state = state;
 }
+
+int task_insert_fd(struct task_struct* t, struct file* f) {
+  for (int i = 0; i < OPEN_FILE_TABLE_COUNT; i++) {
+    if (!t->fd[i]) {
+      t->fd[i] = f;
+      return i;
+    }
+  }
+
+  return -1;
+}
